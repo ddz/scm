@@ -58,13 +58,14 @@ scheme_t gc_copy(scheme_t s)
     if (GET_CAR(GET_PTR(s)) == FORWARDED)
         return GET_CDR(GET_PTR(s));
     else {
+        scheme_t* c = (scheme_t*)GET_PTR(s);
         uint8_t* addr = free_ptr;
-        memcpy(addr, (void*)GET_PTR(s), sizeof(cell_t));
+        memcpy(addr, c, sizeof(cell_t));
         free_ptr = free_ptr + sizeof(cell_t);
         free_space -= sizeof(cell_t);
         
-        GET_CAR(GET_PTR(s)) = FORWARDED;
-        GET_CDR(GET_PTR(s)) = (scheme_t)addr;
+        GET_CAR(c) = FORWARDED;
+        GET_CDR(c) = (scheme_t)addr;
 
         if (IS_PAIRPTR(s))
             return MAKE_PAIRPTR(addr);
