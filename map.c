@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include "map.h"
 
+#define MAP_INIT_SIZE 1
+
 static int map_resize(map_t* h, size_t size);
 static map_entry_t** map_lookup(map_t* h, const void* key);
 
@@ -20,9 +22,9 @@ int map_init(map_t* h, map_hash_t hash_op, map_cmp_t cmp_op)
     h->rehash_size.type = RATIO;
     h->rehash_size.rehash.ratio = 2.0;
 
-    h->size = 1;
+    h->size = 0;
     h->used = 0;
-    h->table = malloc(h->size * sizeof(map_entry_t*));
+    h->table = NULL; // malloc(h->size * sizeof(map_entry_t*));
 }
 
 int map_resize(map_t* h, size_t size)
@@ -60,6 +62,9 @@ map_entry_t** map_lookup(map_t* h, const void* key)
     unsigned int i;
     map_entry_t** e = NULL;
 
+    if (h->table == NULL)
+        return NULL;
+    
     i = (*h->hash_op)(key) % h->size;
 
     for (e = &h->table[i]; *e; e = &(*e)->next) {
@@ -81,17 +86,20 @@ void* map_get(map_t*h, const void* key)
 
 int map_put(map_t* h, void* key, void* data)
 {
-    map_entry_t** e = map_lookup(h, key);
+    map_entry_t** e;
+    
+    if (h->table == NULL)
+        map_resize(h, MAP_INIT_SIZE);
 
-    if (*e)
-        return -1;
-    else {
+    e = map_lookup(h, key);
+    
+    if (*e == NULL) {
         *e = malloc(sizeof(map_entry_t));
         (*e)->key = key;
         (*e)->data = data;
         (*e)->next = NULL;
 
-        if (++h->used > h->rehash_threshold * h->size) {
+        if (++h->used > (h->rehash_threshold * h->size)) {
             size_t newsize;
             if (h->rehash_size.type == SIZE)
                 newsize = h->size + h->rehash_size.rehash.size;
@@ -99,7 +107,11 @@ int map_put(map_t* h, void* key, void* data)
                 newsize = h->size * h->rehash_size.rehash.ratio;
             map_resize(h, newsize);
         }
+        
+        return 0;
     }
+
+    return -1;
 }
 
 unsigned int map_hash(const void* key)

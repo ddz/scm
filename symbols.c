@@ -8,30 +8,25 @@
 #include <string.h>
 #include <ctype.h>
 #include "scheme.h"
-#include "symtable.h"
+#include "map.h"
 
-#define INIT_TABLE_SIZE  101
-
-static symtable_t* symbol_table = NULL;
+static map_t* oblist = NULL;
 
 /*
- * Make an interned symbol.  The stored symbol name is a copy of the
- * given string converted to all lowercase.
+ * A case-insensitive hash_pjw
  */
-scheme_t make_intern_symbol(char* str, size_t len)
+size_t hash_intern_string(const void* v)
 {
-    int i;
-    char* name;
-    scheme_t s = MAKE_CELL();
-    scheme_set_carx(s, (len << 6) | (SYMBOL_T << 3) | 6);
-
-    name = strdup(str);
-    /* Symbols are stored all lowercase internally */
-    for (i = 0; i < len; i++)
-        name[i] = tolower(name[i]);
-    
-    scheme_set_cdrx(s, name);
-    return s;
+    const char* p = (const char*)v;
+    register unsigned int h = 0, g, l, n = strlen(p);
+    for (l = n; l > 0; --l) {
+        h = (h<<4) + tolower(*p++);
+        if ((g = h&0xf0000000)) {
+            h = h ^ (g>>24);
+            h = h^g;
+        }
+    }
+    return h&0xfffffff;
 }
 
 /*
@@ -40,24 +35,28 @@ scheme_t make_intern_symbol(char* str, size_t len)
  */
 scheme_t make_symbol(char* name, size_t len)
 {
-    symtable_entry_t** e;
+    scheme_t s;
+    
+    if (oblist == NULL) {
+        oblist = malloc(sizeof(map_t));
+        map_init(oblist, hash_intern_string, (map_cmp_t)strcmp);
+    }
 
-    if (symbol_table == NULL) {
-        symbol_table = make_symtable(INIT_TABLE_SIZE);
+    if ((s = (scheme_t)map_get(oblist, name)) == NULL) {
+        int i;
+        char* intern_name = malloc(len + 1);
+
+        for (i = 0; i < len; i++)
+            intern_name[i] = tolower(name[i]);
+        intern_name[i] = '\0';
+
+        s = MAKE_CELL();
+        scheme_set_carx(s, (len << 6) | (SYMBOL_T << 3) | 6);
+        scheme_set_cdrx(s, intern_name);
+
+        map_put(oblist, name, (void*)s);
     }
     
-    e = symtable_lookup(symbol_table, name);
-
-    if (*e == NULL) {
-        *e = make_symtable_entry(make_intern_symbol(name, len));
-        
-        if (++symbol_table->used >
-	    REHASH_THRESHOLD * symbol_table->size) {
-            symtable_resize(symbol_table,
-			    (symbol_table->size * 2) + 1);
-	    e = symtable_lookup(symbol_table, name);
-	}
-    }
-    
-    return (*e)->symbol;
+    return s;
 }
+

@@ -4,7 +4,7 @@
 
 CFLAGS=-I. -g
 LDLIBS=-lgmp
-OBJS=main.o read.o write.o types.o stk.o strbuf.o pairs.o symbols.o numbers.o numberio.o map.o symtable.o
+OBJS=main.o read.o write.o types.o stk.o strbuf.o pairs.o symbols.o numbers.o numberio.o map.o
 
 all: scheme
 
@@ -27,8 +27,6 @@ strbuf.c: strbuf.h
 pairs.c: scheme.h
 
 symbols.c: scheme.h
-
-symtable.c: scheme.h symtable.h
 
 clean:
 	rm *.o lex.yy.c scheme core *.core *~
