@@ -10,7 +10,7 @@
 #include "scheme.h"
 #include "map.h"
 
-static map_t* oblist = NULL;
+map_t* oblist = NULL;
 
 /*
  * A case-insensitive hash_pjw

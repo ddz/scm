@@ -270,10 +270,7 @@ extern scheme_t        val;
 extern scheme_t        proc;
 extern scheme_t        args;
 
-extern scheme_t        read_tmp;
-
 typedef enum {LIST, VECTOR} sequence_type;
-
 typedef struct {
     int abbrev;
     int dot;
@@ -291,7 +288,8 @@ typedef struct {
     } seq;
 } sequence_state_t;
 
-extern sequence_state_t* seq;
-extern stk_t stk;
+extern stk_t read_stk;
+
+extern map_t* oblist;
 
 #endif

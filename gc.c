@@ -42,6 +42,11 @@ void* gc_alloc(size_t size)
     if (free_space - (int)size < 0) {
         fprintf(stderr, "Starting garbage collection...\n");
         gc_flip();
+
+        if (free_space - (int)size < 0) {
+            fprintf(stderr, "Not enough space reclaimed in GC!\n");
+            exit(1);
+        }
     }
 
     ptr = free_ptr;
@@ -63,11 +68,17 @@ scheme_t gc_copy(scheme_t s)
     else {
 	scheme_t f;
         uint8_t* addr = free_ptr;
-	
-        memcpy(addr, c, sizeof(cell_t));
+        
         free_ptr += sizeof(cell_t);
-        free_space -= sizeof(cell_t);
+        free_space = free_space - (int)sizeof(cell_t);
 
+        if (free_space < 0) {
+            fprintf(stderr, "Heap space exhausted in copy!\n");
+            exit(3);
+        }
+        
+        memcpy(addr, c, sizeof(cell_t));
+        
 	if (IS_PAIRPTR(s))
 	    f = MAKE_PAIRPTR(addr);
 	else
@@ -95,7 +106,7 @@ void trace_env(env_frame_t* env)
     }
 
     if (env->env)
-        trace_env(env);
+        trace_env(env->env);
 }
 
 void gc_flip()
@@ -134,17 +145,12 @@ void gc_flip()
         args = gc_copy(args);
 
     /*
-    if (IS_HEAPPTR(read_tmp))
-        read_tmp = gc_copy(read_tmp);
-
-    se = stk.head;
+     * Scan reader sequence stack
+     */
+    se = read_stk.head;
     while (se != NULL) {
-        if (IS_HEAPPTR((scheme_t)se->data))
-            se->data = (void*)gc_copy((scheme_t)se->data);
-        se = se->next;
-    }
+        sequence_state_t* seq = (sequence_state_t*)se->data;
 
-    if (seq) {
         if (seq->type == LIST) {
             if (IS_HEAPPTR(seq->seq.list.head))
                 seq->seq.list.head = gc_copy(seq->seq.list.head);
@@ -162,9 +168,13 @@ void gc_flip()
             fprintf(stderr, "Wrong sequence type in gc\n");
             abort();
         }
+
+        se = se->next;
     }
-    */
-    
+
+    /*
+     * Scan continuation chain
+     */
     c = cont;
     while (c != NULL) {
 	if (c->envt)
@@ -222,6 +232,18 @@ void gc_flip()
 	}
 
 	c = c->cont;
+    }
+
+    /*
+     * Scan oblist
+     */
+    for (i = 0; i < oblist->size; i++) {
+        map_entry_t* e = oblist->table[i];
+        while (e) {
+            assert(IS_HEAPPTR((scheme_t)e->data));
+            e->data = (void*)gc_copy((scheme_t)e->data);
+            e = e->next;
+        }
     }
     
     // scan tospace for more objects to copy over

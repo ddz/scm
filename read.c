@@ -16,6 +16,8 @@ static int isdelimiter(char);
 static int issubsequent(char);
 static int isinitial(char);
 
+stk_t read_stk = STK_INITIALIZER;
+
 sequence_state_t* make_sequence(sequence_type type)
 {
     sequence_state_t* seq = malloc(sizeof(sequence_state_t));
@@ -192,26 +194,27 @@ scheme_t read_token(FILE* f)
 
 scheme_t scheme_read(FILE* f)
 {
-    stk_t stk = STK_INITIALIZER;
     sequence_state_t* seq = NULL;
     scheme_t s = SCHEME_UNDEF;
 
+    stk_init(&read_stk);
+    
     while ((s = read_token(f)) != SCHEME_EOF) {
 	switch (s) {
 	case LP:
 	    seq = make_sequence(LIST);
-	    stk_push(&stk, seq);
+	    stk_push(&read_stk, seq);
 	    continue;
 	    
 	case SP:
 	    seq = make_sequence(VECTOR);
-	    stk_push(&stk, seq);
+	    stk_push(&read_stk, seq);
 	    continue;
 	    
 	case RP:
-	    if (stk_empty(&stk))
+	    if (stk_empty(&read_stk))
 		error("Mismatched parenthesis");
-	    seq = stk_pop(&stk);
+	    seq = stk_pop(&read_stk);
 	    s = sequence2scheme(seq);
 	    free(seq);
 	    seq = NULL;
@@ -221,42 +224,42 @@ scheme_t scheme_read(FILE* f)
 	    seq = make_sequence(LIST);
 	    seq->abbrev = 1;
 	    sequence_add(seq, MAKE_SYMBOL("quote", 5));
-	    stk_push(&stk, seq);
+	    stk_push(&read_stk, seq);
 	    continue;
 
 	case BACKTICK:
 	    seq = make_sequence(LIST);
 	    seq->abbrev = 1;
 	    sequence_add(seq, MAKE_SYMBOL("quasiquote", 10));
-	    stk_push(&stk, seq);
+	    stk_push(&read_stk, seq);
 	    continue;
 
 	case COMMA:
 	    seq = make_sequence(LIST);
 	    seq->abbrev = 1;
 	    sequence_add(seq, MAKE_SYMBOL("unquote", 7));
-	    stk_push(&stk, seq);
+	    stk_push(&read_stk, seq);
 	    continue;
 
 	case COMMAAT:
 	    seq = make_sequence(LIST);
 	    seq->abbrev = 1;
 	    sequence_add(seq, MAKE_SYMBOL("unquote-splicing", 16));
-	    stk_push(&stk, seq);
+	    stk_push(&read_stk, seq);
 	    continue;
 
 	case DOT:
-	    if (stk_empty(&stk))
+	    if (stk_empty(&read_stk))
 		error("Illegal use of \".\"\n");
-	    seq = (sequence_state_t*)stk_top(&stk);
+	    seq = (sequence_state_t*)stk_top(&read_stk);
 	    if (seq->type != LIST)
 		error("Illegal use of \".\"\n");
 	    seq->dot = 1;
 	    continue;
 	}
 	
-	if (!stk_empty(&stk)) {
-	    seq = (sequence_state_t*)stk_pop(&stk);
+	if (!stk_empty(&read_stk)) {
+	    seq = (sequence_state_t*)stk_pop(&read_stk);
 
 	    if (seq->dot) {
 		scheme_set_cdrx(seq->seq.list.tail, s);
@@ -269,8 +272,8 @@ scheme_t scheme_read(FILE* f)
 		s = sequence2scheme(seq);
 		free(seq);
 		seq = NULL;
-		if (!stk_empty(&stk)) {
-		    seq = (sequence_state_t*)stk_pop(&stk);
+		if (!stk_empty(&read_stk)) {
+		    seq = (sequence_state_t*)stk_pop(&read_stk);
 		    sequence_add(seq, s);
 		}
 		else
@@ -278,10 +281,10 @@ scheme_t scheme_read(FILE* f)
 	    }
 
 	    if (seq)
-		stk_push(&stk, seq);
+		stk_push(&read_stk, seq);
 	}
 		    
-	if (stk_empty(&stk))
+	if (stk_empty(&read_stk))
 	    return s;
     }
 }

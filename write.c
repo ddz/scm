@@ -146,7 +146,10 @@ scheme_t scheme_write_1(scheme_t obj)
             }
                 
             default:
-                printf("#<heap pointer>");
+                if (GET_CAR(GET_PTR(obj)) == 0xaaaaaaaa)
+                    printf("#<dead object>");
+                else
+                    printf("#<heap pointer>");
             }
         }
         break;

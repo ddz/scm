@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "scheme.h"
 
 jmp_buf top_level;
@@ -42,9 +43,41 @@ void init_env()
 
 int main(int argc, char* argv[])
 {
+    char c;
     scheme_t s, e;
+    size_t heap_size = 512;
     
-    gc_init(512);
+    while ((c = getopt(argc, argv, "h:")) != EOF) {
+        switch (c) {
+        case 'h': {
+            char* endptr;
+            heap_size = strtol(optarg, &endptr, 10);
+
+            if (strcmp(endptr, "") == 0) {
+                heap_size *= 1;
+            }
+            
+            else if (strcasecmp(endptr, "m") == 0) {
+                heap_size *= 1024 * 1024;
+            }
+
+            else if (strcasecmp(endptr, "k") == 0) {
+                heap_size *= 1024;
+            }
+            else {
+                fprintf(stderr, "Unknown heap size unit suffix\n");
+                exit(1);
+            }
+            break;
+        }
+
+        default:
+            fprintf(stderr, "usage: %s [-h <heap size>]\n", argv[0]);
+            exit(1);
+        }
+    }
+    
+    gc_init(heap_size);
     init_env();
     while (1) {
         printf("> ");
