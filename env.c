@@ -36,9 +36,12 @@ int env_lookup(env_frame_t* env, scheme_t var, scheme_t* val)
 
     v = map_get(env->bindings, (const void*)var);
 
-    if (v == NULL)
+    if (v == NULL) {
+        if (env->env)
+            return env_lookup(env->env, var, val);
         return 0;
-    else
+    }
+    else if (val)
         *val = (scheme_t)v;
     return 1;
 }

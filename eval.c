@@ -10,6 +10,9 @@ static scheme_t quasi_eval(scheme_t ls, env_frame_t* e, size_t nest);
 
 static char errmsg[1024];
 
+/*
+ * Scheme evaluator, not yet tail recursive
+ */
 scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
 {
     /*
@@ -185,10 +188,7 @@ scheme_t scheme_apply_2(scheme_t operator, scheme_t operands)
            IS_PAIRPTR(vars)) {
         scheme_t var, val;
         
-        if (IS_PAIRPTR(vars))
-            var = scheme_car(vars);
-        else
-            var = vars;
+        var = scheme_car(vars);
         val = scheme_car(vals);
         
         env_bind(env, var, val);

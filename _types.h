@@ -161,13 +161,13 @@ typedef scheme_t cell_t[2];
 #define GET_CELLTAG(s) ((GET_CAR(GET_PTR(s)) >> 3) & 7)
 #define GET_CELLLEN(s) ((GET_CAR(GET_PTR(s)) >> 6))
 
-#define SYMBOL_T    0
-#define STRING_T    1
-#define VECTOR_T    2
-#define PORT_T      3
-#define BIGNUM_T    4
-#define RATNUM_T    5
-#define PROCEDURE_T 6
+#define SYMBOL_T       0
+#define STRING_T       1
+#define VECTOR_T       2
+#define PORT_T         3
+#define BIGNUM_T       4
+#define RATNUM_T       5
+#define PROCEDURE_T    6
 
 #define GET_CAR(c)         (((scheme_t*)c)[0])
 #define GET_CDR(c)         (((scheme_t*)c)[1])

@@ -54,7 +54,7 @@ scheme_t make_symbol(char* name, size_t len)
         scheme_set_carx(s, (len << 6) | (SYMBOL_T << 3) | 6);
         scheme_set_cdrx(s, intern_name);
 
-        map_put(oblist, name, (void*)s);
+        map_put(oblist, intern_name, (void*)s);
     }
     
     return s;

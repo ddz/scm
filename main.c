@@ -15,6 +15,7 @@ env_frame_t* top_env = NULL;
 void init_env()
 {
     top_env = make_environment(NULL);
+    env_bind(top_env, make_symbol("begin", 5), SCHEME_BEGIN);
     env_bind(top_env, make_symbol("quote", 5), SCHEME_QUOTE);
     env_bind(top_env, make_symbol("lambda", 6), SCHEME_LAMBDA);
     env_bind(top_env, make_symbol("if", 2), SCHEME_IF);
