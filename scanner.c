@@ -131,7 +131,7 @@ scheme_t scheme_read(FILE* f)
 {
     char c;
     scheme_t s;
-    
+
     typedef struct {
 	enum {LIST, VECTOR} type;
 	union {
@@ -152,7 +152,7 @@ scheme_t scheme_read(FILE* f)
     
     while ((c = getc(f)) != EOF) {
 	s = SCHEME_UNDEF;
-	
+
 	switch (c) {
 	/*
 	 * Atmosphere (skip whitespace and comments)
@@ -164,13 +164,20 @@ scheme_t scheme_read(FILE* f)
 	    do { c = getc(f); } while (c != '\n' && c != EOF);
 	    continue;
 
+	/*
+	 * Begin reading a new list
+	 */
 	case '(':
 	    seq = malloc(sizeof(sequence_state_t));
 	    seq->type = LIST;
 	    seq->seq.list.head = seq->seq.list.tail = SCHEME_NIL;
 	    stk_push(&stk, seq);
 	    continue;
-	    
+
+	/*
+	 * A '.' may be part of a dotted pair or the unique
+	 * identifier '...'.
+	 */
 	case '.': {
 	    char d, e;
 	    if ((c = getc(f)) != '.') {
@@ -192,7 +199,10 @@ scheme_t scheme_read(FILE* f)
 	    else
 		error("Unexpected '.'");
 	}
-	
+
+	/*
+	 * A sequence (list or vector) closing.
+	 */
 	case ')':
 	    seq = (sequence_state_t*)stk_pop(&stk);
 	    if (seq->type == LIST)
@@ -252,13 +262,19 @@ scheme_t scheme_read(FILE* f)
 	    }
 	    ungetc(c, f);
 	}
-	    
+
+	/*
+	 * Lisp-like read macros
+	 */
 	case '#': {
 	    char d = getc(f);
 	    switch (d) {
 	    case EOF:
 		return SCHEME_EOF;
-		
+
+	    /*
+	     * Opening a vector sequence
+	     */
 	    case '(':
 		seq = malloc(sizeof(sequence_state_t));
 		seq->type = VECTOR;
