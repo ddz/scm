@@ -14,14 +14,6 @@ scheme_t make_vector(scheme_t* vector, size_t elems)
     return s;
 }
 
-scheme_t make_symbol(char* name, size_t len)
-{
-    scheme_t s = MAKE_CELL();
-    scheme_set_carx(s, (len << 5) | (SYMBOL_T << 3) | 6);
-    scheme_set_cdrx(s, name);
-    return s;
-}
-
 scheme_t make_string(char* name, size_t len)
 {
     scheme_t s = MAKE_CELL();

@@ -157,15 +157,17 @@ typedef scheme_t cell_t[2];
  * implemented.
  */
 
-#define GET_CELLTAG(s) ((scheme_car(s) >> 3) & 3)
-#define GET_CELLLEN(s) ((scheme_car(s) >> 5))
+#define GET_CELLTAG(s) ((GET_CAR(GET_PTR(s)) >> 3) & 3)
+#define GET_CELLLEN(s) ((GET_CAR(GET_PTR(s)) >> 5))
 
 #define SYMBOL_T 0
 #define STRING_T 1
 #define VECTOR_T 2
 
-#define GET_CAR(c) (((scheme_t*)c)[0])
-#define GET_CDR(c) (((scheme_t*)c)[1])
+#define GET_CAR(c)         (((scheme_t*)c)[0])
+#define GET_CDR(c)         (((scheme_t*)c)[1])
+#define GET_SYMBOL_NAME(s) ((char*)GET_CDR(GET_PTR(s)))
+#define IS_SYMBOL(s)       (IS_CELLPTR(s) && GET_CELLTAG(s) == SYMBOL_T)
 
 #define MAKE_CELL() (MAKE_CELLPTR(malloc(sizeof(cell_t))))
 #define MAKE_PAIR() (MAKE_PAIRPTR(malloc(sizeof(cell_t))))

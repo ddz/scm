@@ -2,14 +2,11 @@
 # $Id$
 #
 
-CFLAGS=-g
+CFLAGS=-I. -g
 LDLIBS=-lreadline -lcurses -ll
-OBJS=scheme.o read.o lexer.o write.o types.o stk.o strbuf.o
+OBJS=scheme.o read.o lexer.o write.o types.o stk.o strbuf.o symbols.o
 
 all: scheme
-
-test: scheme
-	./scheme < test/test-read.scm | diff - ./test/test-read.out
 
 scheme: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS)
@@ -30,6 +27,8 @@ types.c: scheme.h
 stk.c: stk.h
 
 strbuf.c: strbuf.h
+
+symbols.c: scheme.h
 
 clean:
 	rm *.o lex.yy.c scheme core *.core *~
