@@ -8,11 +8,17 @@ LDLIBS=-lreadline -ll
 
 all: read
 
-read: read.o
+read: read.o write.o types.o
 
-read.o: lex.yy.c tokens.h types.h _types.h
+read.o: lex.yy.c scheme.h
 
-lex.yy.c: r5rs.f
+write.o: scheme.h
+
+types.o: types.c types.h
+
+scheme.h: types.h _types.h
+
+lex.yy.c: r5rs.f tokens.h
 	$(LEX) r5rs.f
 
 clean:

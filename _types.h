@@ -34,6 +34,8 @@ typedef u_int32_t scheme_t;
 #define IS_IMMVAL(s)  (GET_TAG(s) == IMMVAL_T)
 #define IS_HEAPPTR(s) (GET_TAG(s) == HEAPPTR_T)
 
+#define GET_FIXNUM(i) (i >> 2)
+
 #define MAKE_FIXNUM(i)  ((i << 2) | FIXNUM_T)
 /* #define MAKE_SHRTFL(f) (...) */
 
@@ -85,8 +87,10 @@ typedef u_int32_t scheme_t;
 #define IS_CELLPTR(s) (GET_PTRTAG(s) == CELLPTR_T)
 #define IS_PAIRPTR(s) (GET_PTRTAG(s) == PAIRPTR_T)
 
-#define MAKE_CELLPTR(p) (s | CELLPTR_T)
-#define MAKE_PAIRPTR(p) (s | PAIRPTR_T)
+#define GET_PTR(s) (s & ~(PTRTAG_MASK))
+
+#define MAKE_CELLPTR(p) (p | CELLPTR_T)
+#define MAKE_PAIRPTR(p) (p | PAIRPTR_T)
 
 /*
  * Scheme Heap cells
@@ -98,5 +102,17 @@ typedef scheme_t cell_t[2];
  * The cell type is assumed to be a pair unless the low three bits of
  * the first cell word are 110.
  */
+
+#define GET_CELLTAG(s) ((SCHEME_CAR(s) >> 3) & 3)
+#define GET_CELLLEN(s) ((SCHEME_CAR(s) >> 5))
+
+#define SYMBOL_T 0
+#define STRING_T 1
+
+#define GET_CAR(c) (((scheme_t*)c)[0])
+#define GET_CDR(c) (((scheme_t*)c)[1])
+
+#define MAKE_CELL() (MAKE_CELLPTR(malloc(sizeof(cell_t))))
+#define MAKE_PAIR() (MAKE_PAIRPTR(malloc(sizeof(cell_t))))
 
 #endif

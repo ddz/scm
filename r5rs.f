@@ -23,6 +23,7 @@ DIGIT8			[0-7]
 DIGIT16			[0-9a-fA-F]
 SPECIALSUBSEQUENT	[+\-.@]
 SUBSEQUENT		[a-zA-Z!$%&*/:<=>?^_~0-9+\-.@]
+NUMCHARS                [0-9a-fA-F+\-bodxieesfdl.#@]
 
 %x STR
 
@@ -30,25 +31,6 @@ SUBSEQUENT		[a-zA-Z!$%&*/:<=>?^_~0-9+\-.@]
 
 {WHITESPACE}		/* Eat whitespace */
 ;.*			/* Eat comments */
-
-{INITIAL}{SUBSEQUENT}*	|
-"+"|"-"|"..."		{ return IDENTIFIER; }
-	
-"#t"|"#f"		{ return BOOLEAN; }
-
-#[bodx].+		|
-#[ie].+			|
-{DIGIT}*		|
-"+".+			|
-"-".+			{ return NUMBER; }
-
-#\\(.|\n|space|newline)	{ return CHARACTER; }
-
-<STR>\\\"		{ string_add("\"", 1); }
-<STR>\\\\		{ string_add("\\", 1); }
-<STR>[^\\\"]*		{ string_add(yytext, yyleng);  }
-<STR>\"			{ BEGIN 0; return STRING; }
-\"			{ BEGIN STR; string_init(); }
 
 "#("			{ return SP; }
 "("			{ return LP; }
@@ -58,6 +40,26 @@ SUBSEQUENT		[a-zA-Z!$%&*/:<=>?^_~0-9+\-.@]
 ",@"			{ return COMMAAT; }
 ","			{ return COMMA; }
 "."			{ return PERIOD; }
+
+{INITIAL}{SUBSEQUENT}*	|
+"+"|"-"|"..."		{ return IDENTIFIER; }
+	
+"#t"|"#f"		{ return BOOLEAN; }
+
+#[bodx]{NUMCHARS}+	|
+#[ie]{NUMCHARS}+	|
+{DIGIT}{NUMCHARS}*	|
+"+"{NUMCHARS}+		|
+"-"{NUMCHARS}+		{ return NUMBER; }
+
+#\\[^)]+       		{ return CHARACTER; }
+
+
+<STR>\\\"		{ string_add("\"", 1); }
+<STR>\\\\		{ string_add("\\", 1); }
+<STR>[^\\\"]*		{ string_add(yytext, yyleng);  }
+<STR>\"			{ BEGIN 0; return STRING; }
+\"			{ BEGIN STR; string_init(); }
 
 "[" | "]" | "{" | "}"	{ printf("Reserved character: %s\n", yytext); }
 .			{ printf("Unrecognized character: %s\n", yytext); }

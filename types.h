@@ -23,8 +23,23 @@
 #define SCHEME_EXACTP(s) (SCHEME_RATIONALP(s) | IS_REALNUM(s) | IS_RECTNUM(s))
 #define SCHEME_INEXACTP(s) (IS_FLONUM(s) | IS_COMPNUM(s))
 
+/*
+ * Scheme constants
+ */
 #define SCHEME_TRUE BOOL_TRUE
 #define SCHEME_FALSE BOOL_FALSE
 #define SCHEME_NIL UNIQ_NIL
+#define SCHEME_EOF UNIQ_EOF
+#define SCHEME_UNDEF UNIQ_UNDEF
+#define SCHEME_UNSPEC UNIQ_UNSPEC
+
+#define SCHEME_CAR(s)         (GET_CAR(GET_PTR(s)))
+#define SCHEME_CDR(s)         (GET_CDR(GET_PTR(s)))
+#define SCHEME_SET_CARX(s, v) (GET_CAR(GET_PTR(s)) = (scheme_t)v)
+#define SCHEME_SET_CDRX(s, v) (GET_CDR(GET_PTR(s)) = (scheme_t)v)
+
+extern scheme_t make_symbol(char*, size_t);
+extern scheme_t make_string(char*, size_t);
+extern scheme_t scheme_cons(scheme_t, scheme_t);
 
 #endif
