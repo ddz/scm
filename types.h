@@ -38,8 +38,11 @@
 #define SCHEME_SET_CARX(s, v) (GET_CAR(GET_PTR(s)) = (scheme_t)v)
 #define SCHEME_SET_CDRX(s, v) (GET_CDR(GET_PTR(s)) = (scheme_t)v)
 
-extern scheme_t scheme_cons(scheme_t, scheme_t);
+#define SCHEME_CONS(car, cdr) (scheme_cons(car, cdr))
+#define MAKE_SYMBOL(str, size) (make_symbol(str, size))
+#define MAKE_STRING(str, size) (make_string(str, size))
 
+extern scheme_t scheme_cons(scheme_t, scheme_t);
 extern scheme_t make_symbol(char*, size_t);
 extern scheme_t make_string(char*, size_t);
 

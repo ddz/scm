@@ -4,179 +4,119 @@
 #include <limits.h>
 #include <errno.h>
 #include <readline/readline.h>
+
 #include "scheme.h"
-#include "lex.yy.c"
+#include "fstropen.h"
+#include "que.h"
 
 char* prompt0 = "> ";
 char* prompt1 = "? ";
 
-/*
- * Really primitive and bogus number parsing.  Only parses fixnums
- * (but in any base)
- */
-scheme_t read_number(char* str, size_t n)
+scheme_t read_number(FILE* f)
 {
-    scheme_t num;
-    char* endptr = NULL;
-    int i = -1, base = 10, exact = 0, inexact = 0;
-
-    /*
-     * Read in any optional base or exactness flags
-     */
-    while (str[0] == '#') {
-        switch (str[1]) {
-        case 'b':
-            base = 2;
-            break;
-        case 'o':
-            base = 8;
-            break;
-        case 'd':
-            base = 10;
-            break;
-        case 'x':
-            base = 16;
-            break;
-        case 'i':
-            inexact = 1;
-            break;
-        case 'e':
-            exact = 1;
-            break;
-        default:
-            printf("read_number: unknown base or exactness\n");
-            return SCHEME_NIL;
-        }
-        
-        str += 2;
-    }
-
-    i = strtol(str, &endptr, base);
-    if (errno == ERANGE) {
-        if (i == LONG_MIN) {
-            printf("read_number: strtol underflow\n");
-            return SCHEME_NIL;
-        }
-        else if (i == LONG_MAX) {
-            printf("read_number: strtol overflow\n");
-            return SCHEME_NIL;
-        }
-    }
-    else if (*endptr) {
-        printf("read_number: illegal character (%c)\n", *endptr);
-        return SCHEME_NIL;
-    }
-        
-    num = MAKE_FIXNUM(i);
-    if (GET_FIXNUM(num) != i) {
-        printf("read_number: fixnum overflow\n");
-        return SCHEME_NIL;
-    }
-
-    return num;
-}
-
-scheme_t read_token(int token, char* str, size_t n)
-{
-    switch (token) {
-    case IDENTIFIER:
-        return make_symbol(str, n);
-        
-    case BOOLEAN: {
-        switch (str[1]) {
-        case 't':
-        case 'T':
-            return SCHEME_TRUE;
-        case 'f':
-        case 'F':
-            return SCHEME_FALSE;
-        default:
-            printf("INTERNAL ERROR: Can't parse boolean\n");
-            abort();
-        }
-    }
-        
-    case NUMBER:
-        return read_number(yytext, yyleng);
-        
-    case CHARACTER: {
-        if (n > 3) {    /* It's a character name */
-            if (strcasecmp(str+2, "space") == 0)
-                return MAKE_CHAR(' ');
-            else if (strcasecmp(str+2, "newline") == 0)
-                return MAKE_CHAR('\n');
-            else {
-                printf("Unknown character name");
-                return SCHEME_NIL;
-            }
-        }
-        else
-            return MAKE_CHAR(str[2]);
-    }
-        
-    case STRING:
-        return make_string(buf, buflen);
-        
-    default:
-        printf("INTERNAL ERROR: Unknown token %d\n");
-        abort();
-    }
-
-    return SCHEME_NIL;
-
+    printf("READ NUMBER: <%s>\n", str);
+    return SCHEME_UNSPEC;
 }
 
 /*
- * Read and construct a pair
- * FIXME: Do this iteratively, not recursively
+ * Read a simple datum (boolean, number, character, string, or symbol)
  */
-scheme_t read_pair()
+scheme_t read_simple(FILE* f)
 {
-    int token = yylex();
-    scheme_t cdr;
+    if (str[0] == '#') {
+	switch (str[1]) {
+	case 't':
+	    return SCHEME_TRUE;
+	case 'f':
+	    return SCHEME_FALSE;
+	case 'b':
+	case 'o':
+	case 'd':
+	case 'x':
+	case 'i':
+	case 'e':
+	    return read_number(str);
+	case '\\':
+	    if (strncasecmp(str + 2, "space", 5) == 0)
+		return MAKE_CHAR(' ');
+	    else if (strncasecmp(str + 2, "newline", 7) == 0)
+		return MAKE_CHAR('\n');
+	    else
+		return MAKE_CHAR(str[2]);
+	}
+    }
+    else if (str[0] == '\"') {
+	int i;
+	
+	for (i = 1; i++; str[i]) {
+	    switch (str[i]) {
+	    case '\"':
+		break;
+	    case '\\':
+		break;
+	    default:
+		break;
+	    }
+	}
+
+	return MAKE_STRING("BOGUS", 5);
+    }
+
+    else if (isdigit(str[0]))
+	return read_number(str);
     
-    if (token == RP)
-        return SCHEME_NIL;
-    else if (token == LP) {
-        scheme_t car = read_pair();
-        scheme_t cdr = read_pair();
-        return scheme_cons(car, cdr);
-    }
-    else if (token == YY_NULL) {
-        printf("ERROR: Unbalanced parentheses\n");
-        return SCHEME_UNSPEC;
-    }
-
     else {
-        scheme_t car = read_token(token, yytext, yyleng);
-        scheme_t cdr = read_pair();
-        return scheme_cons(car, cdr);
+	printf("ERROR: Unknown simple datum <%s>\n", str);
+	return SCHEME_UNSPEC;
     }
 }
 
+scheme_t read_list(FILE* f)
+{
+    printf("READ_LIST");
+    return SCHEME_UNSPEC;
+}
 
-scheme_t scheme_read() {
-    int token;
-    /*
-     * yylex() returns the token type, the lexeme and its length are
-     * available in yytext and yyleng, respectively.  In the case of a
-     * STRING token, the string is in buf.
-     */
+scheme_t read_vector(FILE* f)
+{
+    que_t q;
 
-    token = yylex();
+    printf("READ VECTOR");
+    return SCHEME_UNSPEC;
+}
 
-    switch(token) {
-    case LP:
-        return read_pair();
+scheme_t read_datum(FILE* f)
+{
+    char* tok, *ptr = str;
 
-    case RP:
-        printf("ERROR: Unexpected ')'\n");
-        return SCHEME_UNSPEC;
-        
-    default:
-        return read_token(token, yytext, yyleng);
+    while (isspace(str[i])) i++;
+
+    switch (str[i]) {
+    case '(':
+	return read_list(str, i + 1, SCHEME_NIL);
+    case '\'':
+	return read_list(str, i + 1,
+			 SCHEME_CONS(MAKE_SYMBOL("quote", 5),
+				     SCHEME_NIL));
+    case '`':
+	return read_list(str, i + 1,
+			 SCHEME_CONS(MAKE_SYMBOL("quasiquote", 10),
+				     SCHEME_NIL));
+    case ',':
+	if (str[i + 1] == '@')
+	    return read_list(str, i + 2,
+			     SCHEME_CONS(MAKE_SYMBOL("unquote-splicing", 16),
+					 SCHEME_NIL));
+	else
+	    return read_list(str, i + 1,
+			     SCHEME_CONS(MAKE_SYMBOL("unquote", 7),
+					 SCHEME_NIL));
     }
-
+	
+    if (strncmp(str + i, "#(", 2) == 0)
+	return read_vector(str, i);
+    else
+	return read_simple(str);
 }
 
 int main(int argc, char* argv[])
@@ -184,15 +124,13 @@ int main(int argc, char* argv[])
     char* line;
     
     while ((line = readline(prompt0)) != NULL) {
-	int token;
-	scheme_t s;
-	YY_BUFFER_STATE yybuf = yy_scan_string(line);
-	
 	if (strlen(line) > 0) {
-            s = scheme_read();
-            scheme_write(s);
-            printf("\n");
+	    FILE* f = fstropen(line);
+            scheme_t s = read_datum(f);    /* Read */
+	    /* Eval */
+            scheme_write(s);               /* Print */
 	    add_history(line);
+            printf("\n");
         }
     }
     

@@ -9,6 +9,36 @@
 #include <sys/types.h>
 
 /*
+ * The data representation used is a hybrid using tagged words and
+ * double wrappers.  Tag bits in the low two bits of the word indicate
+ * whether it is a pointer to a heap cell or an immediate value (and
+ * what type of immediate value it is).  In the first word of a heap
+ * cell, a specific tag bit value indicates that further type
+ * information is contained in a second-stage tag.
+ *
+ * The extended heap cell tag indicates that an additional two-bit
+ * type type tag is in bits 3 and 4.  For types represented by a
+ * length and a pointer (symbols, strings, and vectors), the length is
+ * contained in the remaining bits of the word with the pointer to the
+ * first element in the second word of the heap cell.  Other objects
+ * may contain extra information in the first word with their pointer
+ * in the second word.
+ *
+ * A type distinguisher may be built by collapsing the various staged
+ * type tags in the following manner:
+ *
+ *  O...OHHIIITT
+ *  |   ||||||\\-- Immediate/pointer type tag
+ *  |   |||\\\---- Immediate value type tag
+ *  |   |\\------- Heap cell type tag
+ *  \...\--------- Object type tag
+ *
+ * This distinguisher is rather sparse, so values for it should be
+ * checked exactly.  This may be changed to a denser distinguisher
+ * later.
+ */
+
+/*
  * Scheme values.
  */
 
@@ -100,7 +130,11 @@ typedef scheme_t cell_t[2];
 
 /*
  * The cell type is assumed to be a pair unless the low three bits of
- * the first cell word are 110.
+ * the first cell word are 110 (which indicates further type
+ * information is contained in a second-stage tag).
+ *
+ * This section may change in the future when heap storage is
+ * implemented.
  */
 
 #define GET_CELLTAG(s) ((SCHEME_CAR(s) >> 3) & 3)
