@@ -12,9 +12,9 @@
  * environment (unless it is the global environment).
  */
 
-typedef struct {
-    scm_hash_t  bindings;
-    env_frame_t environment;
+typedef struct _env_frame {
+    map_t*             bindings;
+    struct _env_frame* environment;
 } env_frame_t;
 
 #endif
