@@ -265,6 +265,7 @@ typedef struct _continuation {
 extern scheme_t        expr;
 extern env_frame_t*    env;
 extern continuation_t* cont;
+extern scheme_t        rator;
 extern scheme_t        rands;
 extern scheme_t        val;
 extern scheme_t        proc;

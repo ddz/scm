@@ -22,6 +22,7 @@
 scheme_t        expr = SCHEME_NIL;
 env_frame_t*    env = NULL;
 continuation_t* cont = NULL;
+scheme_t        rator = SCHEME_NIL;
 scheme_t        rands = SCHEME_NIL;
 scheme_t        val = SCHEME_NIL;
 scheme_t        proc = SCHEME_NIL;
@@ -57,14 +58,12 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         error("reference to undefined identifier");
     }
     else if (scheme_pairp(expr) == SCHEME_TRUE) {
-        scheme_t rator, rands;
-
         rator = scheme_car(expr);
         rands = scheme_cdr(expr);
 
         if (IS_SYMBOL(rator) &&
 	    env_lookup(env, rator, &rator) &&
-	    IS_SYNT(rator)) {
+	    IS_IMMVAL(rator) && IS_SYNT(rator)) {
 	    
             switch (rator) {
             case SCHEME_BEGIN: {
@@ -273,7 +272,8 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 
     case EVAL_REST: {
 	continuation_t* old_cont = cont;
-        val = scheme_cons(cont->data.eval_rest.first_value, val);
+        scheme_t v = scheme_cons(cont->data.eval_rest.first_value, val);
+        val = v;
         cont = cont->cont;
 
 	free_cont(old_cont);

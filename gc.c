@@ -62,8 +62,11 @@ scheme_t gc_copy(scheme_t s)
     scheme_t* c = (scheme_t*)GET_PTR(s);
 
     assert(IS_HEAPPTR(s));
-    
-    if (c[0] == FORWARDED)
+
+    if (c > tospace && c < (tospace + heap_size/2)) {
+        return s;
+    }
+    else if (c[0] == FORWARDED)
         return c[1];
     else {
 	scheme_t f;
@@ -123,28 +126,6 @@ void gc_flip()
     free_space = heap_size / 2;
 
     /*
-     * Scan top level environment
-     */
-    trace_env(top_env);
-    
-    /*
-     * Scan evaluator registers unless they are immediates
-     */
-    if (env != top_env)
-	trace_env(env);
-    
-    if (IS_HEAPPTR(expr)) 
-        expr = gc_copy(expr);
-    if (IS_HEAPPTR(rands))
-        rands = gc_copy(rands);
-    if (IS_HEAPPTR(val))
-        val = gc_copy(val);
-    if (IS_HEAPPTR(proc))
-        proc = gc_copy(proc);
-    if (IS_HEAPPTR(args))
-        args = gc_copy(args);
-
-    /*
      * Scan reader sequence stack
      */
     se = read_stk.head;
@@ -171,6 +152,30 @@ void gc_flip()
 
         se = se->next;
     }
+
+    /*
+     * Scan top level environment
+     */
+    trace_env(top_env);
+    
+    /*
+     * Scan evaluator registers unless they are immediates
+     */
+    if (env != top_env)
+	trace_env(env);
+    
+    if (IS_HEAPPTR(expr)) 
+        expr = gc_copy(expr);
+    if (IS_HEAPPTR(rator))
+        rator = gc_copy(rator);
+    if (IS_HEAPPTR(rands))
+        rands = gc_copy(rands);
+    if (IS_HEAPPTR(val))
+        val = gc_copy(val);
+    if (IS_HEAPPTR(proc))
+        proc = gc_copy(proc);
+    if (IS_HEAPPTR(args))
+        args = gc_copy(args);
 
     /*
      * Scan continuation chain
@@ -226,6 +231,9 @@ void gc_flip()
 		    gc_copy(c->data.eval_rest.first_value);
 	    break;
 
+        case HALT:
+            break;
+            
 	default:
 	    fprintf(stderr, "Unknown continuation type\n");
 	    abort();
