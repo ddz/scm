@@ -19,15 +19,13 @@
 /*
  * Global "registers"
  */
-scheme_t        expr;
-env_frame_t*    env;
-continuation_t* cont;
-scheme_t        rands;
-scheme_t        val;
-scheme_t        proc;
-scheme_t        args;
-
-
+scheme_t        expr = SCHEME_NIL;
+env_frame_t*    env = NULL;
+continuation_t* cont = NULL;
+scheme_t        rands = SCHEME_NIL;
+scheme_t        val = SCHEME_NIL;
+scheme_t        proc = SCHEME_NIL;
+scheme_t        args = SCHEME_NIL;
 
 continuation_t* make_continuation(enum cont_type t,
 				  env_frame_t* e,
@@ -169,6 +167,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     switch (cont->type) {
     case HALT:
 	free_cont(cont);
+	cont = NULL;
         return val;
 
     case TEST: {

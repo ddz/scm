@@ -237,10 +237,6 @@ typedef struct _continuation {
         } assignment;
         
         struct {
-            scheme_t prim;
-        } prim_args;
-
-        struct {
             scheme_t exprs;
         } eval_begin;
             
