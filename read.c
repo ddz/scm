@@ -16,31 +16,16 @@ static int isdelimiter(char);
 static int issubsequent(char);
 static int isinitial(char);
 
+scheme_t read_tmp = SCHEME_NIL;
+sequence_state_t* seq = NULL;
+stk_t stk = STK_INITIALIZER;
+
 scheme_t scheme_read(FILE* f)
 {
     char c;
-    scheme_t s;
 
-    typedef struct {
-	enum {LIST, VECTOR} type;
-	union {
-	    struct {
-		scheme_t  head;
-		scheme_t  tail;
-	    } list;
-	    struct {
-		size_t    used;
-		size_t    size;
-		scheme_t* v;
-	    } vector;
-	} seq;
-    } sequence_state_t;
-
-    sequence_state_t* seq;
-    stk_t stk = STK_INITIALIZER;
-    
     while ((c = getc(f)) != EOF) {
-	s = SCHEME_UNDEF;
+	read_tmp = SCHEME_UNDEF;
 
 	switch (c) {
 	/*
@@ -74,14 +59,14 @@ scheme_t scheme_read(FILE* f)
 		    (seq = stk_top(&stk))->type != LIST)
 		    error("Unexpected '.'");
 
-		s = scheme_read(f);
-		if (s == SCHEME_EOF)
-		    return s;
-		scheme_set_cdrx(seq->seq.list.tail, s);
+		read_tmp = scheme_read(f);
+		if (read_tmp == SCHEME_EOF)
+		    return read_tmp;
+		scheme_set_cdrx(seq->seq.list.tail, read_tmp);
 		continue;
 	    }
 	    else if ((d = getc(f)) == '.') {
-		s = MAKE_SYMBOL("...", 3);
+		read_tmp = MAKE_SYMBOL("...", 3);
 		break;
 	    }
 	    else
@@ -92,19 +77,21 @@ scheme_t scheme_read(FILE* f)
 	 * A sequence (list or vector) closing.
 	 */
 	case ')':
+            if (stk_empty(&stk))
+                error("Unbalanced parenthesis");
 	    seq = (sequence_state_t*)stk_pop(&stk);
 	    if (seq->type == LIST)
-		s = seq->seq.list.head;
+		read_tmp = seq->seq.list.head;
 	    else {
 		seq->seq.vector.v =
                     realloc(seq->seq.vector.v,
                             seq->seq.vector.used * sizeof(scheme_t));
-		s = MAKE_VECTOR(seq->seq.vector.v, seq->seq.vector.used);
+		read_tmp = MAKE_VECTOR(seq->seq.vector.v, seq->seq.vector.used);
 	    }
 	    break;
 
 	case '\"':
-	    s = read_string(f);
+	    read_tmp = read_string(f);
 	    break;
 
 	/*
@@ -113,31 +100,31 @@ scheme_t scheme_read(FILE* f)
 	case ',': {
 	    char d = getc(f);
 	    if (d == '@') {
-		s = scheme_read(f);
-		s = scheme_cons(MAKE_SYMBOL("unquote-splicing", 16),
-				scheme_cons(s, SCHEME_NIL));
+		read_tmp = scheme_read(f);
+		read_tmp = scheme_cons(MAKE_SYMBOL("unquote-splicing", 16),
+				scheme_cons(read_tmp, SCHEME_NIL));
 	    }
 	    else {
 		ungetc(d, f);
-		s = scheme_read(f);
-		s = scheme_cons(MAKE_SYMBOL("unquote", 7),
-				scheme_cons(s, SCHEME_NIL));
+		read_tmp = scheme_read(f);
+		read_tmp = scheme_cons(MAKE_SYMBOL("unquote", 7),
+				scheme_cons(read_tmp, SCHEME_NIL));
 	    }
 	    break;
 	}
 	    
 	case '`':
-	    s = scheme_read(f);
-	    if (s != SCHEME_EOF)
-		s = scheme_cons(MAKE_SYMBOL("quasiquote", 10),
-				scheme_cons(s, SCHEME_NIL));
+	    read_tmp = scheme_read(f);
+	    if (read_tmp != SCHEME_EOF)
+		read_tmp = scheme_cons(MAKE_SYMBOL("quasiquote", 10),
+				scheme_cons(read_tmp, SCHEME_NIL));
 	    break;
 	    
 	case '\'':
-	    s = scheme_read(f);
-	    if (s != SCHEME_EOF)
-		s = scheme_cons(MAKE_SYMBOL("quote", 5),
-				scheme_cons(s, SCHEME_NIL));
+	    read_tmp = scheme_read(f);
+	    if (read_tmp != SCHEME_EOF)
+		read_tmp = scheme_cons(MAKE_SYMBOL("quote", 5),
+				scheme_cons(read_tmp, SCHEME_NIL));
 	    break;
 	    
 	case '+':
@@ -147,13 +134,13 @@ scheme_t scheme_read(FILE* f)
 
 	    if (isdelimiter(d)) {
 		if (c == '+')
-		    s = MAKE_SYMBOL("+", 1);
+		    read_tmp = MAKE_SYMBOL("+", 1);
 		else
-		    s = MAKE_SYMBOL("-", 1);
+		    read_tmp = MAKE_SYMBOL("-", 1);
 	    }
 	    else {
 		ungetc(c, f);
-		s = read_number(f);
+		read_tmp = read_number(f);
 	    }
             break;
 	}
@@ -181,16 +168,16 @@ scheme_t scheme_read(FILE* f)
 		
 	    case 't':
 	    case 'T':
-		s = SCHEME_TRUE;
+		read_tmp = SCHEME_TRUE;
 		break;
 		
 	    case 'f':
 	    case 'F':
-		s = SCHEME_FALSE;
+		read_tmp = SCHEME_FALSE;
 		break;
 		
 	    case '\\':
-		s = read_character(f);
+		read_tmp = read_character(f);
 		break;
 
 	    case 'B':
@@ -205,13 +192,13 @@ scheme_t scheme_read(FILE* f)
 	    case 'i':
 		ungetc(d, f);
 		ungetc(c, f);
-		s = read_number(f);
+		read_tmp = read_number(f);
 		break;
 		
 	    default:
 		ungetc(d, f);
 		ungetc(c, f);
-		s =  read_number(f);
+		read_tmp = read_number(f);
 		break;
 	    }
 	    break;
@@ -220,11 +207,11 @@ scheme_t scheme_read(FILE* f)
 	default:
 	    if (isdigit(c)) {
 		ungetc(c, f);
-		s = read_number(f);
+		read_tmp = read_number(f);
 	    }
 	    else if (isinitial(c)) {
 		ungetc(c, f);
-		s = read_identifier(f);
+		read_tmp = read_identifier(f);
 	    }
 	    else
 		error("Bad character");
@@ -239,7 +226,7 @@ scheme_t scheme_read(FILE* f)
 	if (!stk_empty(&stk)) {
 	    seq = (sequence_state_t*)stk_top(&stk);
 	    if (seq->type == LIST) {
-		scheme_t c = scheme_cons(s, SCHEME_NIL);
+		scheme_t c = scheme_cons(read_tmp, SCHEME_NIL);
 		if (seq->seq.list.tail != SCHEME_NIL)
 		    scheme_set_cdrx(seq->seq.list.tail, c);
 		else
@@ -254,11 +241,11 @@ scheme_t scheme_read(FILE* f)
 				seq->seq.vector.size * sizeof(scheme_t));
 		}
 
-		seq->seq.vector.v[seq->seq.vector.used++] = s;
+		seq->seq.vector.v[seq->seq.vector.used++] = read_tmp;
 	    }
 	}
 	else
-	    return s;
+	    return read_tmp;
     }
 
     return SCHEME_EOF;

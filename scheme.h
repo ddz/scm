@@ -3,6 +3,7 @@
 #ifndef SCHEME_H
 #define SCHEME_H
 
+#include "stk.h"
 #include "gc.h"
 #include "_types.h"
 #include "procedures.h"
@@ -268,5 +269,25 @@ extern scheme_t        rands;
 extern scheme_t        val;
 extern scheme_t        proc;
 extern scheme_t        args;
+
+extern scheme_t        read_tmp;
+
+typedef struct {
+    enum {LIST, VECTOR} type;
+    union {
+        struct {
+            scheme_t  head;
+            scheme_t  tail;
+        } list;
+        struct {
+            size_t    used;
+            size_t    size;
+            scheme_t* v;
+        } vector;
+    } seq;
+} sequence_state_t;
+
+extern sequence_state_t* seq;
+extern stk_t stk;
 
 #endif

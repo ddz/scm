@@ -4,10 +4,18 @@
  */
 
 #include <stdlib.h>
+#include <assert.h>
 #include "scheme.h"
 #include "env.h"
 
 extern size_t hash_symbol(const void*);
+
+size_t hash_sym(const void* v)
+{
+    scheme_t s = (scheme_t)v;
+    assert(IS_SYMBOL(s));
+    return hash_symbol((void*)GET_CDR(GET_PTR(s)));
+}
 
 int eqp(const void* a, const void* b)
 {
@@ -20,7 +28,7 @@ env_frame_t* make_environment(env_frame_t* parent)
     e->env = parent;
     e->bindings = malloc(sizeof(map_t));
 
-    map_init(e->bindings, hash_symbol, eqp);
+    map_init(e->bindings, hash_sym, eqp);
 
     return e;
 }

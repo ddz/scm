@@ -8,6 +8,7 @@
 #include <inttypes.h>
 #include <assert.h>
 #include "scheme.h"
+#include "stk.h"
 
 static size_t   heap_size;
 
@@ -99,6 +100,8 @@ void trace_env(env_frame_t* env)
 
 void gc_flip()
 {
+    struct stk_elem* se;
+    int i;
     continuation_t* c;
     void* tmp = tospace;
     
@@ -129,6 +132,36 @@ void gc_flip()
         proc = gc_copy(proc);
     if (IS_HEAPPTR(args))
         args = gc_copy(args);
+
+    if (IS_HEAPPTR(read_tmp))
+        read_tmp = gc_copy(read_tmp);
+
+    se = stk.head;
+    while (se != NULL) {
+        if (IS_HEAPPTR((scheme_t)se->data))
+            se->data = (void*)gc_copy((scheme_t)se->data);
+        se = se->next;
+    }
+
+    if (seq) {
+        if (seq->type == LIST) {
+            if (IS_HEAPPTR(seq->seq.list.head))
+                seq->seq.list.head = gc_copy(seq->seq.list.head);
+            if (IS_HEAPPTR(seq->seq.list.tail))
+                seq->seq.list.tail = gc_copy(seq->seq.list.tail);
+        }
+        else if (seq->type == VECTOR) {
+            int i;
+            for (i = 0; i < seq->seq.vector.used; i++) {
+                if (IS_HEAPPTR(seq->seq.vector.v[i]))
+                    seq->seq.vector.v[i] = gc_copy(seq->seq.vector.v[i]);
+            }
+        }
+        else {
+            fprintf(stderr, "Wrong sequence type in gc\n");
+            abort();
+        }
+    }
     
     c = cont;
     while (c != NULL) {
@@ -236,4 +269,9 @@ void gc_flip()
 
         scan += sizeof(cell_t);
     }
+
+    // Just for debugging, deadbeef-out fromspace
+    for (i = 0; i < heap_size / 2; i++)
+        fromspace[i] = 0xAA;
+    
 }
