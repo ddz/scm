@@ -1,7 +1,7 @@
 /* scanner for R5RS Scheme */
 
 %{
-#include "tokens.h"
+#include "lexer.h"
 %}
 
 WHITESPACE		[ \n]
@@ -36,7 +36,7 @@ RESERVED		[\[\]{}]
 {INITIAL}{SUBSEQUENT}*	|
 "+"|"-"|"..."		{ return IDENTIFIER; }
 
-"#t"|"#f"		{ return BOOLEAN; }
+#[tTfF] 		{ return BOOLEAN; }
 
 #[bodx]{NUMCHARS}+	|
 #[ie]{NUMCHARS}+	|
@@ -50,7 +50,7 @@ RESERVED		[\[\]{}]
 <STR>\\\\		{ yymore(); }
 <STR>[^\\\"]*		{ yymore();  }
 <STR>\"			{ BEGIN 0; return STRING; }
-\"			{ BEGIN STR; }
+\"			{ yymore(); BEGIN STR; }
 
 {RESERVED}		{ printf("Reserved character: %s\n", yytext); return ERROR; }
 .			{ printf("Unrecognized character: %s\n", yytext); return ERROR; }

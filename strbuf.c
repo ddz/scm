@@ -1,20 +1,10 @@
 /* $Id$ */
-/*
- * An infinitely (as available memory allows) growing string buffer.
- */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <errno.h>
-
-#define STRBUF_VALID 0xfeedface
-#define STRBUF_INITIALIZER {STRBUF_VALID, 0, 0, 0}
-
-typedef struct {
-    int    magic;   /* Magic number   */
-    char*  buf;     /* String buffer  */
-    size_t size;    /* Size of buffer */
-    size_t len;     /* Length used    */
-} strbuf_t;
+#include "strbuf.h"
 
 int strbuf_init(strbuf_t* sb)
 {
@@ -45,12 +35,30 @@ int strbuf_reset(strbuf_t* sb)
     return 0;
 }
 
-int strbuf_append(strbuf_t* sb, char* s)
+int strbuf_append(strbuf_t* sb, char* s, size_t len)
 {
+    if (sb->len + len > sb->size) {
+        while (sb->len + len < sb->size) {
+            if (sb->size == 0)
+                sb->size = 1;
+            else
+                sb->size = sb->size * 2;
+        }
+        sb->buf = realloc(sb->buf, sb->size);
+    }
 
+    strncat(sb->buf, s, len);
+    sb->len += len;
+
+    return 0;
 }
 
-int strbuf_length(strbuf_t* sb)
+size_t strbuf_length(strbuf_t* sb)
 {
+    return sb->len;
+}
 
+char* strbuf_buffer(strbuf_t* sb)
+{
+    return sb->buf;
 }

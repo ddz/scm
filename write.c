@@ -3,6 +3,7 @@
  * Scheme printer
  */
 
+#include <stdio.h>
 #include "types.h"
 
 scheme_t scheme_write(scheme_t);
@@ -38,11 +39,11 @@ void write_vector(scheme_t vec)
     size_t elems = GET_CELLLEN(vec);
     scheme_t* vector = (scheme_t*)SCHEME_CDR(vec);
 
-    for (i = 0; i < elems - 1; i++) {
+    for (i = 0; i < elems; i++) {
 	scheme_write(vector[i]);
-	printf(" ");
+        if (i != elems - 1)
+            printf(" ");
     }
-    scheme_write(vector[i]);
 }
 
 scheme_t scheme_write(scheme_t obj)
@@ -125,7 +126,7 @@ scheme_t scheme_write(scheme_t obj)
             }
                 
             case SYMBOL_T:
-                printf("%s", SCHEME_CDR(obj));
+                printf("%s", (char*)SCHEME_CDR(obj));
                 break;
 
 	    case VECTOR_T:
@@ -138,6 +139,7 @@ scheme_t scheme_write(scheme_t obj)
                 printf("#<heap pointer>");
             }
         }
+        break;
     }
 
     return SCHEME_UNSPEC;

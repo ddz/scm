@@ -1,15 +1,18 @@
 /* $Id$ */
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <limits.h>
 #include <errno.h>
 #include <setjmp.h>
+#include <readline/history.h>
 #include <readline/readline.h>
 
 #include "scheme.h"
-#include "lex.yy.c"
+#include "lexer.h"
 #include "que.h"
 #include "stk.h"
+#include "strbuf.h"
 
 char* prompt0 = "> ";
 char* prompt1 = "? ";
@@ -19,11 +22,237 @@ jmp_buf top_level;
 static scheme_t read_datum();
 static scheme_t read_list();
 static scheme_t read_vector();
-static scheme_t read_simple(char* str, int len);
-static scheme_t read_number(char* str, int len);
+static scheme_t read_simple(token_t*);
+static scheme_t read_string(token_t*);
+static scheme_t read_number(token_t*);
 
-scheme_t read_number(char* str, int n)
+int main(int argc, char* argv[])
 {
+    char* line;
+    
+    while ((line = readline(prompt0)) != NULL) {
+        if (strlen(line) == 0)
+            continue;
+
+        /*
+         * Begin scanning the line for tokens
+         */
+        lexer_scan_string(line);
+
+        /*
+         * Set a jmp point so errors return to the top-level
+         */
+        if (!setjmp(top_level)) {
+            scheme_t s = read_datum();
+            
+            if (s != SCHEME_UNSPEC) {
+                scheme_write(s);
+                printf("\n");
+            }
+            
+            add_history(line);
+        }
+    }
+    
+    return 0;
+}
+
+/*
+ * Read a Scheme datum (just about any scheme object)
+ */
+scheme_t read_datum()
+{
+    token_t token;
+
+    lexer_next_token(&token);
+
+    switch (token.token) {
+    case ERROR:
+	longjmp(top_level, 1);
+	
+    case 0:
+        return SCHEME_UNSPEC;
+    case RP:
+        return SCHEME_NIL;
+        
+    case LP:
+	return read_list();
+
+    case SP:
+	return read_vector();
+
+    case PERIOD:
+        /* XXX: ERROR */
+	printf("Error: Unexpected '.'\n");
+        break;
+        
+    case QUOTE:
+	return SCHEME_CONS(SCHEME_QUOTE, read_list());
+    case BACKQUOTE:
+	return SCHEME_CONS(SCHEME_QUASIQUOTE, read_list());
+    case COMMA:
+        return SCHEME_CONS(SCHEME_UNQUOTE, read_list());
+    case COMMAAT:
+        return SCHEME_CONS(SCHEME_UNQUOTE_SPLICING, read_list());
+    }
+    
+    return read_simple(&token);
+}
+
+/*
+ * Read a list of Scheme objects
+ */
+scheme_t read_list()
+{
+    stk_t    stk = STK_INITIALIZER;
+    scheme_t s, ls = SCHEME_NIL;
+
+    while (1) {
+	token_t token;
+	
+        s = read_datum();
+
+        /*
+         * read_datum() returns SCHEME_NIL to signify end-of-list.
+         */
+        if (s == SCHEME_NIL)
+            break;
+        
+        stk_ins(&stk, (void*)s);
+
+        lexer_peek_token(&token);
+	if (token.token == PERIOD) {
+            lexer_next_token(&token);
+            
+	    ls = read_datum();
+
+            /*
+             * Ensure that the . was before the last list element.
+             */
+            lexer_peek_token(&token);
+            if (token.token != RP) {
+                printf("ERROR: Unexpected '.'\n");
+                longjmp(top_level, 1);
+            }
+            
+	    break;
+	}
+    }
+
+    while (!stk_empty(&stk)) {
+        scheme_t car = (scheme_t)stk_rem(&stk);
+        ls = SCHEME_CONS(car, ls);
+    }
+
+    return ls;
+}
+
+/*
+ * Read a vector of Scheme objects
+ */
+scheme_t read_vector()
+{
+    int i = 0, elems = 0;
+    que_t que = QUE_INITIALIZER;
+    scheme_t s;
+    scheme_t* vector;
+
+    /*
+     * Read in all the elements into a queue and then move them into a
+     * properly sized array of scheme_t.
+     */
+    
+    while ((s = read_datum()) != SCHEME_NIL) {
+	elems++;
+	que_ins(&que, (void*)s);
+    }
+
+    vector = (scheme_t*)malloc(elems * sizeof(scheme_t));
+
+    while (!que_empty(&que))
+	vector[i++] = (scheme_t)que_rem(&que);
+
+    return MAKE_VECTOR(vector, elems);
+}
+
+
+/*
+ * Read a simple datum (boolean, number, character, string, or symbol)
+ */
+scheme_t read_simple(token_t* token)
+{
+    switch (token->token) {
+    case IDENTIFIER:
+        return MAKE_SYMBOL(strdup(token->lexeme), token->length);
+        
+    case BOOLEAN:
+        if (strcasecmp(token->lexeme, "#t") == 0)
+            return SCHEME_TRUE;
+        else
+            return SCHEME_FALSE;
+        
+    case NUMBER:
+        return read_number(token);
+
+    case CHARACTER:
+        if (strncasecmp(token->lexeme + 2, "space", 5) == 0)
+            return MAKE_CHAR(' ');
+        else if (strncasecmp(token->lexeme + 2, "newline", 7) == 0)
+            return MAKE_CHAR('\n');
+        else
+            return MAKE_CHAR(token->lexeme[2]);
+
+    case STRING:
+        return read_string(token);
+    }
+    
+    printf("ERROR: Unknown simple datum token\n");
+    longjmp(top_level, 1);
+    
+    return SCHEME_UNSPEC;
+}
+
+
+
+/*
+ * Read in a Scheme string
+ */
+scheme_t read_string(token_t* token)
+{
+    char* str = token->lexeme;
+    int   len = token->length;
+    strbuf_t sb;
+    int i;
+    
+    strbuf_init(&sb);
+    
+    for (i = 1; i < len; i++) {
+        if (str[i] == '\\') {
+            if (str[i + 1] == '\\')
+                strbuf_append(&sb, "\\", 1);
+            else if (str[i + 1] == '\"')
+                strbuf_append(&sb, "\"", 1);
+            else {
+                printf("ERROR: Unknown string escape\n");
+                longjmp(top_level, 1);
+            }
+            i++;
+        }
+        else if (str[i] == '\"')
+            break;
+        else
+            strbuf_append(&sb, str + i, 1);
+    }
+    
+    return MAKE_STRING(strbuf_buffer(&sb), strbuf_length(&sb));
+}
+
+/*
+ * Read in a Scheme number
+ */
+scheme_t read_number(token_t* token)
+{
+    char* str = token->lexeme;
     scheme_t num;
     char* endptr = NULL;
     int i = -1, base = 10, exact = 0, inexact = 0;
@@ -84,165 +313,3 @@ scheme_t read_number(char* str, int n)
     return num;
 }
 
-/*
- * Read a simple datum (boolean, number, character, string, or symbol)
- */
-scheme_t read_simple(char* str, int len)
-{
-    if (str[0] == '#') {
-	switch (str[1]) {
-	case 't':
-	    return SCHEME_TRUE;
-	case 'f':
-	    return SCHEME_FALSE;
-	case 'b':
-	case 'o':
-	case 'd':
-	case 'x':
-	case 'i':
-	case 'e':
-	    return read_number(str, len);
-	case '\\':
-	    if (strncasecmp(str + 2, "space", 5) == 0)
-		return MAKE_CHAR(' ');
-	    else if (strncasecmp(str + 2, "newline", 7) == 0)
-		return MAKE_CHAR('\n');
-	    else
-		return MAKE_CHAR(str[2]);
-	}
-    }
-    else if (str[0] == '\"') {
-	int i;
-	
-	for (i = 1; i++; str[i]) {
-	    switch (str[i]) {
-	    case '\"':
-		break;
-	    case '\\':
-		break;
-	    default:
-		break;
-	    }
-	}
-
-	return MAKE_STRING("BOGUS", 5);
-    }
-
-    else if (isdigit(str[0]))
-	return read_number(str, len);
-    
-    else {
-	printf("ERROR: Unknown simple datum <%s>\n", str);
-	return SCHEME_UNSPEC;
-    }
-}
-
-scheme_t read_datum()
-{
-    int token = yylex();
-
-    switch (token) {
-    case ERROR:
-	longjmp(top_level, 0);
-	
-    case 0:
-    case RP:
-        return SCHEME_NIL;
-        
-    case LP:
-	return read_list();
-
-    case SP:
-	return read_vector();
-
-    case PERIOD:
-	printf("Error: Unexpected '.'\n");
-        break;
-        
-    case QUOTE:
-	return SCHEME_CONS(SCHEME_QUOTE, read_list());
-    case BACKQUOTE:
-	return SCHEME_CONS(SCHEME_QUASIQUOTE, read_list());
-    case COMMA:
-        return SCHEME_CONS(SCHEME_UNQUOTE, read_list());
-               
-    case COMMAAT:
-        return SCHEME_CONS(SCHEME_UNQUOTE_SPLICING, read_list());
-               
-    default:
-	return read_simple(yytext, yyleng);
-    }
-    
-}
-
-scheme_t read_list()
-{
-    stk_t    stk = STK_INITIALIZER;
-    scheme_t s, ls = SCHEME_NIL;
-
-    while (1) {
-	int token;
-	
-        s = read_datum();
-        if (s == SCHEME_NIL)
-            break;
-        stk_ins(&stk, (void*)s);
-
-	token = yylex();
-	if (token == PERIOD) {
-	    ls = read_datum();
-	    break;
-	}
-	else
-	    yyless(0);
-    }
-
-    while (!stk_empty(&stk)) {
-        scheme_t car = (scheme_t)stk_rem(&stk);
-        ls = SCHEME_CONS(car, ls);
-    }
-
-    if (ls == SCHEME_NIL)
-	return SCHEME_CONS(SCHEME_NIL, SCHEME_NIL);
-    return ls;
-}
-
-scheme_t read_vector()
-{
-    int i = 0, elems = 0;
-    que_t que = QUE_INITIALIZER;
-    scheme_t s;
-    scheme_t* vector;
-
-    while ((s = read_datum()) != SCHEME_NIL) {
-	elems++;
-	que_ins(&que, (void*)s);
-    }
-
-    vector = (scheme_t*)malloc(elems * sizeof(scheme_t));
-
-    while (!que_empty(&que))
-	vector[i++] = (scheme_t)que_rem(&que);
-
-    return MAKE_VECTOR(vector, elems);
-}
-
-int main(int argc, char* argv[])
-{
-    char* line;
-    
-    while ((line = readline(prompt0)) != NULL) {
-	if (strlen(line) > 0) {
-            YY_BUFFER_STATE state = yy_scan_string(line);
-	    if (!setjmp(top_level)) {
-		scheme_t s = read_datum();    /* Read */
-		/* Eval */
-		scheme_write(s);               /* Print */
-		add_history(line);
-		printf("\n");
-	    }
-        }
-    }
-    
-    return 0;
-}

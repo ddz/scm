@@ -139,8 +139,8 @@ typedef u_int32_t scheme_t;
 
 #define GET_PTR(s) (s & ~(PTRTAG_MASK))
 
-#define MAKE_CELLPTR(p) (p | CELLPTR_T)
-#define MAKE_PAIRPTR(p) (p | PAIRPTR_T)
+#define MAKE_CELLPTR(p) ((unsigned int)p | CELLPTR_T)
+#define MAKE_PAIRPTR(p) ((unsigned int)p | PAIRPTR_T)
 
 /*
  * Scheme Heap cells

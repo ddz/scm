@@ -3,6 +3,7 @@
  * Primitive Scheme procedures relating to variable types.
  */
 
+#include <stdlib.h>
 #include "types.h"
 
 scheme_t make_vector(scheme_t* vector, size_t elems)
