@@ -1,5 +1,7 @@
-/* $Id$
- * Generic Stack
+/* $Id$ */
+/*
+ * Generic stack implemented using linked lists.
+ *
  * Dino Dai Zovi <ghandi@cs.unm.edu>
  */
 
