@@ -9,33 +9,8 @@ jmp_buf top_level;
 char* error_msg;
 env_frame_t* top_env = NULL;
 
-scheme_t car(scheme_t args)
-{
-    if (args == SCHEME_NIL || scheme_cdr(args) != SCHEME_NIL)
-	error("car: Wrong number of arguments");
-    return scheme_car(scheme_car(args));
-}
-
-scheme_t cdr(scheme_t args)
-{
-    if (args == SCHEME_NIL || scheme_cdr(args) != SCHEME_NIL)
-	error("cdr: Wrong number of arguments");
-    return scheme_cdr(scheme_car(args));
-}
-
-scheme_t cons(scheme_t args)
-{
-    scheme_t arg0, arg1;
-    
-    if (args == SCHEME_NIL ||
-	scheme_cdr(args) == SCHEME_NIL ||
-	scheme_cdr(scheme_cdr(args)) != SCHEME_NIL)
-	error("cons: Wrong number of arguments");
-
-    arg0 = scheme_car(args);
-    arg1 = scheme_car(scheme_cdr(args));
-    return scheme_cons(arg0, arg1);
-}
+#define define_primative(e, p, f, q, o, r) \
+    (env_bind(e, make_symbol(p, strlen(p)), make_primative(f, q, o, r)));
 
 /*
  * Initialize top-level environment
@@ -44,12 +19,12 @@ void init_env()
 {
     top_env = make_environment(NULL);
 
-    env_bind(top_env, make_symbol("car", 3),
-	     make_primative(car));
-    env_bind(top_env, make_symbol("cdr", 3),
-	     make_primative(cdr));
-    env_bind(top_env, make_symbol("cons", 4),
-	     make_primative(cons));
+    define_primative(top_env, "pair?", scheme_pairp, 1, 0, 0);
+    define_primative(top_env, "cons", scheme_cons, 2, 0, 0);
+    define_primative(top_env, "car", scheme_car, 1, 0, 0);
+    define_primative(top_env, "cdr", scheme_cdr, 1, 0, 0);
+    define_primative(top_env, "set-car!", scheme_set_carx, 2, 0, 0);
+    define_primative(top_env, "set-cdr!", scheme_set_cdrx, 2, 0, 0);
     
     env_bind(top_env, make_symbol("begin", 5), SCHEME_BEGIN);
     env_bind(top_env, make_symbol("quote", 5), SCHEME_QUOTE);

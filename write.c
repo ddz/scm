@@ -23,7 +23,7 @@ void write_list(scheme_t list)
 
     if (cdr != SCHEME_NIL) {
         printf(" ");
-	if (scheme_pairp(cdr))
+	if (scheme_pairp(cdr) == SCHEME_TRUE)
 	    write_list(cdr);
 	else {
 	    printf(". ");
@@ -36,7 +36,7 @@ void write_vector(scheme_t vec)
 {
     int i;
     size_t elems = GET_CELLLEN(vec);
-    scheme_t* vector = (scheme_t*)scheme_cdr(vec);
+    scheme_t* vector = (scheme_t*)GET_CDR(GET_PTR(vec));
 
     for (i = 0; i < elems; i++) {
 	scheme_write_1(vector[i]);
@@ -125,7 +125,7 @@ scheme_t scheme_write_1(scheme_t obj)
             }
                 
             case SYMBOL_T:
-                printf("%s", (char*)scheme_cdr(obj));
+                printf("%s", (char*)GET_CDR(GET_PTR(obj)));
                 break;
 
 	    case VECTOR_T:

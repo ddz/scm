@@ -27,7 +27,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
                 GET_SYMBOL_NAME(sexpr));
         error(errmsg);
     }
-    else if (scheme_pairp(sexpr)) {
+    else if (scheme_pairp(sexpr) == SCHEME_TRUE) {
         scheme_t op, args;
 
         op = scheme_eval(scheme_car(sexpr), env);
@@ -226,7 +226,7 @@ scheme_t scheme_apply_2(scheme_t operator, scheme_t operands)
  */
 scheme_t quasi_eval(scheme_t s, env_frame_t* env, size_t nest)
 {
-    if (scheme_pairp(s)) {
+    if (scheme_pairp(s) == SCHEME_TRUE) {
         scheme_t a = scheme_car(s);
         scheme_t d = scheme_cdr(s);
 
@@ -251,7 +251,7 @@ scheme_t quasi_eval(scheme_t s, env_frame_t* env, size_t nest)
             }
         }
 
-        else if (scheme_pairp(a)) {
+        else if (scheme_pairp(a) == SCHEME_TRUE) {
             scheme_t aa = scheme_car(a);
             scheme_t ad = scheme_cdr(a);
 
@@ -264,7 +264,7 @@ scheme_t quasi_eval(scheme_t s, env_frame_t* env, size_t nest)
                 
                     us = scheme_eval(us, env);
 
-                    if (!scheme_pairp(us))
+                    if (scheme_pairp(us) == SCHEME_FALSE)
                         error("unquote-splicing: must eval to list\n");
 
                     return scheme_append(us, quasi_eval(d, env, nest));

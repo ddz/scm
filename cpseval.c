@@ -17,7 +17,7 @@
  */
 
 enum cont_type {
-    HALT, TEST, VARASSIGN, DEFINITION, PRIM_ARGS, BEGIN,
+    HALT, TEST, VARASSIGN, DEFINITION, BEGIN,
     EVAL_RATOR, EVAL_RANDS, EVAL_FIRST, EVAL_REST
 };
 
@@ -100,7 +100,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             goto APPLY_CONT;
         error("reference to undefined identifier");
     }
-    else if (scheme_pairp(expr)) {
+    else if (scheme_pairp(expr) == SCHEME_TRUE) {
         scheme_t rator, rands;
 
         rator = scheme_car(expr);
@@ -192,6 +192,9 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             }
         }
         else {
+            /*
+             * Procedure application
+             */
             expr = rator;
             cont = make_continuation(EVAL_RATOR, env, cont);
             cont->data.eval_rator.rands = rands;
@@ -256,18 +259,6 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         goto APPLY_CONT;
     }
         
-    case PRIM_ARGS: {
-	continuation_t* old_cont = cont;
-
-        // val = apply_primative(cont->data.prim_args.prim, val);
-        error("Primatives don't exist yet");
-
-        cont = cont->cont;
-	free_cont(old_cont);
-
-        goto APPLY_CONT;
-    }
-
     case BEGIN: {
 	continuation_t* old_cont = cont;
 	
@@ -351,13 +342,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         struct procedure* p = GET_PROCEDURE(proc);
 
 	if (p->type == PRIMATIVE) {
-            /*
-	    continuation_t* old_cont = cont;
-	    cont = cont->cont;
-	    free(old_cont);
-            */
-
-	    val = (*p->data.primative.f)(args);
+	    val = apply_primative(proc, args);
 
             goto APPLY_CONT;
 	}

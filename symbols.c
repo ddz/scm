@@ -51,8 +51,8 @@ scheme_t make_symbol(char* name, size_t len)
         intern_name[i] = '\0';
 
         s = MAKE_CELL();
-        scheme_set_carx(s, (len << 6) | (SYMBOL_T << 3) | 6);
-        scheme_set_cdrx(s, intern_name);
+        GET_CAR(GET_PTR(s)) = (len << 6) | (SYMBOL_T << 3) | 6;
+        GET_CDR(GET_PTR(s)) = (scheme_t)intern_name;
 
         map_put(oblist, intern_name, (void*)s);
     }

@@ -9,8 +9,10 @@
 scheme_t make_port(FILE* f)
 {
     scheme_t s = MAKE_CELL();
-    scheme_set_carx(s, (PORT_T << 3) | 6);
-    scheme_set_cdrx(s, f);
+
+    GET_CAR(GET_PTR(s)) = (PORT_T << 3) | 6;
+    GET_CDR(GET_PTR(s)) = (scheme_t)f;
+
     return s;
 }
 

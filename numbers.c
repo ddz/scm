@@ -19,8 +19,10 @@ scheme_t make_bignum(char* str, int radix)
     }
     
     s = MAKE_CELL();
-    scheme_set_carx(s, (BIGNUM_T << 3) | 6);
-    scheme_set_cdrx(s, bignum);
+
+    GET_CAR(GET_PTR(s)) = (BIGNUM_T << 3) | 6;
+    GET_CDR(GET_PTR(s)) = (scheme_t)bignum;
+
     return s;
 }
 
@@ -39,7 +41,8 @@ scheme_t make_ratnum(char* num, char* den, int radix)
     }
 
     s = MAKE_CELL();
-    scheme_set_carx(s, (RATNUM_T << 3) | 6);
-    scheme_set_cdrx(s, ratnum);
+    GET_CAR(GET_PTR(s)) = (RATNUM_T << 3) | 6;
+    GET_CDR(GET_PTR(s)) = (scheme_t)ratnum;
+
     return s;
 }

@@ -120,14 +120,12 @@ extern scheme_t scheme_string2number_2(scheme_t, scheme_t);
 
 /* 6.3.2. Pairs and lists */
 
-#define scheme_pairp(s)       (IS_PAIRPTR(s))
+extern scheme_t scheme_pairp(scheme_t);
 extern scheme_t scheme_cons(scheme_t, scheme_t);
-#define scheme_car(s)         (GET_CAR(GET_PTR(s)))
-#define scheme_cdr(s)         (GET_CDR(GET_PTR(s)))
-#define scheme_set_carx(s, v) (GET_CAR(GET_PTR(s)) = (scheme_t)v)
-#define scheme_set_cdrx(s, v) (GET_CDR(GET_PTR(s)) = (scheme_t)v)
-
-extern scheme_t scheme_append(scheme_t, scheme_t);
+extern scheme_t scheme_car(scheme_t);
+extern scheme_t scheme_cdr(scheme_t);
+extern scheme_t scheme_set_carx(scheme_t, scheme_t);
+extern scheme_t scheme_set_cdrx(scheme_t, scheme_t);
 
 /* 6.3.3. Symbols */
 // symbol?
