@@ -1,6 +1,6 @@
 /* $Id$ */
 /*
- * Standard Scheme procedures
+ * Scheme R5RS pairs and lists procedures
  */
 
 #include <stdlib.h>

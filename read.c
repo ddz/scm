@@ -1,333 +1,370 @@
 /* $Id$ */
+
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-#include <limits.h>
-#include <errno.h>
 #include <setjmp.h>
-
+#include <string.h>
 #include "scheme.h"
-#include "lexer.h"
 #include "stk.h"
 #include "strbuf.h"
 
-#define error(msg) do { error_msg = msg; longjmp(top_level, 1); } while (0);
-
-jmp_buf top_level;
-char* error_msg;
-
-static void     init();
-static void     repl();
-static scheme_t read_datum(int);
-static scheme_t read_list(int);
-static scheme_t read_vector(int);
-static scheme_t read_simple(token_t*);
-static scheme_t read_string(token_t*);
-static scheme_t read_number(token_t*);
-
-int main(int argc, char* argv[])
+scheme_t read_character(FILE* f)
 {
-    init();
-    repl();
-}
-
-void init()
-{
-    lexer_scan_file(stdin);
-}
-
-void repl(void)
-{
-    scheme_t s;
-
-    printf("> ");
-    while (1) {
-	if (setjmp(top_level) == 0) {
-	    s = scheme_read_0();
-	    if (s == SCHEME_EOF)
-		break;
-	    scheme_write_1(s);
-	}
-	else {
-	    printf("ERROR: %s", error_msg);
-	}
-	printf("\n> ");
-    }
-}
-
-scheme_t scheme_current_input_port()
-{
-    return SCHEME_NIL;
-}
-
-scheme_t scheme_read_0()
-{
-    return scheme_read_1(scheme_current_input_port());
-}
-
-scheme_t scheme_read_1(scheme_t port)
-{
-    return read_datum(0);
-}
-
-
-/*
- * Read a Scheme datum (just about any scheme object)
- */
-scheme_t read_datum(int depth)
-{
-    token_t token;
-
-    lexer_next_token(&token);
-
-    switch (token.token) {
-    case 0:
-        return SCHEME_EOF;
-	
-    case RP:
-	if (depth)
-	    return SCHEME_NIL;
-	else
-	    error("Unexpected ')'");
-        
-    case LP:
-	return read_list(depth + 1);
-
-    case SP:
-	return read_vector(depth + 1);
-
-    case PERIOD:
-        /* XXX: ERROR */
-	error("Error: Unexpected '.'");
-        
-    case QUOTE:
-	return scheme_cons(SCHEME_QUOTE,
-			   scheme_cons(read_datum(depth + 1),
-				       SCHEME_NIL));
-    case BACKQUOTE:
-	return scheme_cons(SCHEME_QUASIQUOTE,
-			   scheme_cons(read_datum(depth + 1),
-				       SCHEME_NIL));
-    case COMMA:
-        return scheme_cons(SCHEME_UNQUOTE,
-			   scheme_cons(read_datum(depth + 1),
-				       SCHEME_NIL));
-    case COMMAAT:
-        return scheme_cons(SCHEME_UNQUOTE_SPLICING,
-			   scheme_cons(read_datum(depth + 1),
-				       SCHEME_NIL));
-    }
+    char c;
     
-    return read_simple(&token);
+    fprintf(stderr, "read_character");
+    
+    while ((c = getc(f)) != EOF) {
+	switch (c) {
+	case ' ':
+	case '\n':
+	    break;
+	    
+	case '(':
+	case ')':
+	case '\"':
+	case ';':
+	    ungetc(c, f);
+	    break;
+	}
+    }
+	
+    return SCHEME_UNSPEC;
 }
 
-/*
- * Read a list of Scheme objects
- */
-scheme_t read_list(int depth)
+scheme_t read_number(FILE* f)
 {
-    stk_t    stk = STK_INITIALIZER;
-    scheme_t s, ls = SCHEME_NIL;
+    char c;
+    static strbuf_t sb = STRBUF_INITIALIZER;
 
-    while (1) {
-	token_t token;
-	
-        if ((s = read_datum(depth + 1)) == SCHEME_UNSPEC) {
-	    error("Unbalanced parentheses (missing ')')");
+    strbuf_reset(&sb);
+    
+    while ((c = getc(f)) != EOF) {
+	switch (c) {
+	case '(':
+	case ')':
+	case '\"':
+	case ';':
+	    ungetc(c, f);
+
+	case ' ':
+	case '\n':
+	    return MAKE_FIXNUM(atoi(strbuf_buffer(&sb)));
+
+	default:
+	    strbuf_add(&sb, c);
 	}
+    }
+}
 
-        /*
-         * read_datum() returns SCHEME_NIL to signify end-of-list.
-         */
-        if (s == SCHEME_NIL)
-            break;
-        
-        stk_push(&stk, (void*)s);
-
-        lexer_peek_token(&token);
-	if (token.token == PERIOD) {
-            lexer_next_token(&token);    /* Eat '.' token */
+scheme_t read_string(FILE* f)
+{
+    char c;
+    static strbuf_t sb = STRBUF_INITIALIZER;
+    
+    while ((c = getc(f)) != EOF) {
+        if (c == '"') {
+            int n;
+            char* str;
             
-	    ls = read_datum(depth + 1);
+            str = strdup(sb.buf);
+            n = strbuf_length(&sb);
+            strbuf_reset(&sb);
 
-            /*
-             * Ensure that the . was before the last list element.
-             */
-            lexer_peek_token(&token);
-            if (token.token != RP) {
-                error("Unexpected '.'");
+            return MAKE_STRING(str, n);
+        }
+        else if (c ==  '\\') {
+            switch (getc(f)) {
+            case '\"':
+                strbuf_add(&sb, '\"');
+                break;
+            case '\\':
+                strbuf_add(&sb, '\\');
+                break;
+            default:
+                error("Unknown string escape");
             }
-            lexer_next_token(&token);    /* Eat ')' token */
-            
+        }
+        else
+            strbuf_add(&sb, c);
+    }
+
+    return SCHEME_EOF;
+}
+
+int issubsequent(char c)
+{
+    static char subsequent[] = "!$%&*/:<=>?^_~+-.@";
+
+    return (isalnum(c) || strchr(subsequent, c) != NULL);
+}
+
+int isinitial(char c)
+{
+    static char specialinitial[] = "!$%&*/:<=>?^_~";
+
+    return (isalpha(c) || strchr(specialinitial, c) != NULL);
+}
+
+scheme_t read_identifier(FILE* f)
+{
+    char c;
+    scheme_t s;
+    static strbuf_t sb = STRBUF_INITIALIZER;
+
+    while ((c = getc(f)) != EOF) {
+	if (issubsequent(c))
+	    strbuf_add(&sb, c);
+	else {
+	    ungetc(c, f);
 	    break;
 	}
     }
 
-    while (!stk_empty(&stk)) {
-        scheme_t car = (scheme_t)stk_pop(&stk);
-        ls = scheme_cons(car, ls);
-    }
+    s =  MAKE_SYMBOL(strbuf_buffer(&sb), strbuf_length(&sb));
+    strbuf_reset(&sb);
 
-    return ls;
+    return s;
 }
 
-/*
- * Read a vector of Scheme objects
- */
-scheme_t read_vector(int depth)
+scheme_t scheme_read(FILE* f)
 {
-    int i = 0, elems = 0;
-    stk_t stk = STK_INITIALIZER;
+    char c;
     scheme_t s;
-    scheme_t* vector;
 
-    /*
-     * Read in all the elements into a stack and then load them
-     * backwards into properly sized array of scheme_t.
-     */
+    typedef struct {
+	enum {LIST, VECTOR} type;
+	union {
+	    struct {
+		scheme_t  head;
+		scheme_t  tail;
+	    } list;
+	    struct {
+		size_t    used;
+		size_t    size;
+		scheme_t* v;
+	    } vector;
+	} seq;
+    } sequence_state_t;
+
+    sequence_state_t* seq;
+    stk_t stk = STK_INITIALIZER;
     
-    while ((s = read_datum(depth + 1)) != SCHEME_NIL) {
-	elems++;
-	stk_push(&stk, (void*)s);
-    }
+    while ((c = getc(f)) != EOF) {
+	s = SCHEME_UNDEF;
 
-    vector = (scheme_t*)malloc(elems * sizeof(scheme_t));
+	switch (c) {
+	/*
+	 * Atmosphere (skip whitespace and comments)
+	 */
+	case ' ':
+	case '\n':
+	    continue;
+	case ';':
+	    do { c = getc(f); } while (c != '\n' && c != EOF);
+	    continue;
 
-    i = elems;
-    while (!stk_empty(&stk))
-	vector[--i] = (scheme_t)stk_pop(&stk);
+	/*
+	 * Begin reading a new list
+	 */
+	case '(':
+	    seq = malloc(sizeof(sequence_state_t));
+	    seq->type = LIST;
+	    seq->seq.list.head = seq->seq.list.tail = SCHEME_NIL;
+	    stk_push(&stk, seq);
+	    continue;
 
-    return MAKE_VECTOR(vector, elems);
-}
+	/*
+	 * A '.' may be part of a dotted pair or the unique
+	 * identifier '...'.
+	 */
+	case '.': {
+	    char d, e;
+	    if ((c = getc(f)) != '.') {
+		if (stk_empty(&stk))
+		    error("Unexpected '.'");
+		seq = stk_top(&stk);
+		if (seq->type != LIST)
+		    error("Unexpected '.'");
+		s = scheme_read(f);
+		if (s == SCHEME_EOF)
+		    return s;
+		scheme_set_cdrx(seq->seq.list.tail, s);
+		continue;
+	    }
+	    else if ((d = getc(f)) == '.') {
+		s = MAKE_SYMBOL("...", 3);
+		break;
+	    }
+	    else
+		error("Unexpected '.'");
+	}
 
+	/*
+	 * A sequence (list or vector) closing.
+	 */
+	case ')':
+	    seq = (sequence_state_t*)stk_pop(&stk);
+	    if (seq->type == LIST)
+		s = seq->seq.list.head;
+	    else {
+		seq->seq.vector.v = realloc(seq->seq.vector.v,
+					 seq->seq.vector.used);
+		s = MAKE_VECTOR(seq->seq.vector.v, seq->seq.vector.used);
+	    }
+	    break;
 
-/*
- * Read a simple datum (boolean, number, character, string, or symbol)
- */
-scheme_t read_simple(token_t* token)
-{
-    switch (token->token) {
-    case IDENTIFIER:
-        return MAKE_SYMBOL(strdup(token->lexeme), token->length);
+	case '\"':
+	    s = read_string(f);
+	    break;
+
+	/*
+	 * Abbreviations
+	 */
+	case ',': {
+	    char d = getc(f);
+	    if (d == '@') {
+		s = scheme_read(f);
+		s = scheme_cons(SCHEME_UNQUOTE_SPLICING,
+				scheme_cons(s, SCHEME_NIL));
+	    }
+	    else {
+		ungetc(d, f);
+		s = scheme_read(f);
+		s = scheme_cons(SCHEME_UNQUOTE,
+				scheme_cons(s, SCHEME_NIL));
+	    }
+	    break;
+	}
+	    
+	case '`':
+	    s = scheme_read(f);
+	    if (s != SCHEME_EOF)
+		s = scheme_cons(SCHEME_QUASIQUOTE,
+				scheme_cons(s, SCHEME_NIL));
+	    break;
+	    
+	case '\'':
+	    s = scheme_read(f);
+	    if (s != SCHEME_EOF)
+		s = scheme_cons(SCHEME_QUOTE,
+				scheme_cons(s, SCHEME_NIL));
+	    break;
+	    
+	case '+':
+	case '-': {
+	    char d = getc(f);
+	    if (isdigit(d)) {
+		ungetc(d, f);
+		ungetc(c, f);
+		s = read_number(f);
+		break;
+	    }
+	    ungetc(c, f);
+	}
+
+	/*
+	 * Lisp-like read macros
+	 */
+	case '#': {
+	    char d = getc(f);
+	    switch (d) {
+	    case EOF:
+		return SCHEME_EOF;
+
+	    /*
+	     * Opening a vector sequence
+	     */
+	    case '(':
+		seq = malloc(sizeof(sequence_state_t));
+		seq->type = VECTOR;
+		seq->seq.vector.used = 0;
+		seq->seq.vector.size = 0;
+		seq->seq.vector.v = NULL;
+		stk_push(&stk, seq);
+		break;
+		
+	    case 't':
+	    case 'T':
+		s = SCHEME_TRUE;
+		break;
+		
+	    case 'f':
+	    case 'F':
+		s = SCHEME_FALSE;
+		break;
+		
+	    case '\\':
+		s = read_character(f);
+		break;
+
+	    case 'B':
+	    case 'b':
+	    case 'D':
+	    case 'd':
+	    case 'H':
+	    case 'h':
+	    case 'O':
+	    case 'o':
+	    case 'e':
+	    case 'i':
+		ungetc(d, f);
+		ungetc(c, f);
+		s = read_number(f);
+		break;
+		
+	    default:
+		ungetc(d, f);
+		ungetc(c, f);
+		s =  read_number(f);
+		break;
+	    }
+	    break;
+	}
         
-    case BOOLEAN:
-        if (strcasecmp(token->lexeme, "#t") == 0)
-            return SCHEME_TRUE;
-        else
-            return SCHEME_FALSE;
-        
-    case NUMBER:
-        return read_number(token);
+	default:
+	    if (isdigit(c)) {
+		ungetc(c, f);
+		s = read_number(f);
+	    }
+	    else if (isinitial(c)) {
+		ungetc(c, f);
+		s = read_identifier(f);
+	    }
+	    else
+		error("Bad character");
+	}
 
-    case CHARACTER:
-        if (strncasecmp(token->lexeme + 2, "space", 5) == 0)
-            return MAKE_CHAR(' ');
-        else if (strncasecmp(token->lexeme + 2, "newline", 7) == 0)
-            return MAKE_CHAR('\n');
-        else
-            return MAKE_CHAR(token->lexeme[2]);
+	/*
+	 * If s has been read (not still SCHEME_UNDEF), add it to the
+	 * current sequence.  If there is no current sequence,
+	 * return s.
+	 */
 
-    case STRING:
-        return read_string(token);
+	if (!stk_empty(&stk)) {
+	    seq = (sequence_state_t*)stk_top(&stk);
+	    if (seq->type == LIST) {
+		scheme_t c = scheme_cons(s, SCHEME_NIL);
+		if (seq->seq.list.tail != SCHEME_NIL)
+		    scheme_set_cdrx(seq->seq.list.tail, c);
+		else
+		    seq->seq.list.head = c;
+		seq->seq.list.tail = c;
+	    }
+	    else {
+		if (seq->seq.vector.used + 1 > seq->seq.vector.size) {
+		    seq->seq.vector.size = (seq->seq.vector.size * 2) + 1;
+		    seq->seq.vector.v =
+			realloc(seq->seq.vector.v,
+				seq->seq.vector.size * sizeof(scheme_t));
+		}
+
+		seq->seq.vector.v[seq->seq.vector.size++] = s;
+	    }
+	}
+	else
+	    return s;
     }
-    
-    error("Unknown simple datum token");
-    
-    return SCHEME_UNSPEC;    /* Never reached */
+
+    return SCHEME_EOF;
 }
-
-
-
-/*
- * Read in a Scheme string
- */
-scheme_t read_string(token_t* token)
-{
-    char* str = token->lexeme;
-    int   len = token->length;
-    strbuf_t sb;
-    int i;
-    
-    strbuf_init(&sb);
-    
-    for (i = 1; i < len; i++) {
-        if (str[i] == '\\') {
-            if (str[i + 1] == '\\')
-                strbuf_append(&sb, "\\", 1);
-            else if (str[i + 1] == '\"')
-                strbuf_append(&sb, "\"", 1);
-            else {
-                error("Unknown string escape");
-            }
-            i++;
-        }
-        else if (str[i] == '\"')
-            break;
-        else
-            strbuf_append(&sb, str + i, 1);
-    }
-    
-    return MAKE_STRING(strbuf_buffer(&sb), strbuf_length(&sb));
-}
-
-/*
- * Read in a Scheme number
- */
-scheme_t read_number(token_t* token)
-{
-    char* str = token->lexeme;
-    scheme_t num;
-    char* endptr = NULL;
-    int i = -1, base = 10, exact = 0, inexact = 0;
-
-    /*
-     * Read in any optional base or exactness flags
-     */
-    while (str[0] == '#') {
-        switch (str[1]) {
-        case 'b':
-            base = 2;
-            break;
-        case 'o':
-            base = 8;
-            break;
-        case 'd':
-            base = 10;
-            break;
-        case 'x':
-            base = 16;
-            break;
-        case 'i':
-            inexact = 1;
-            break;
-        case 'e':
-            exact = 1;
-            break;
-        default:
-	    error("unknown base or exactness");
-        }
-        
-        str += 2;
-    }
-
-    i = strtol(str, &endptr, base);
-    if (errno == ERANGE) {
-        if (i == LONG_MIN) {
-            error("strtol underflow");
-        }
-        else if (i == LONG_MAX) {
-            error("strtol overflow");
-        }
-    }
-    else if (*endptr) {
-        error("illegal character");
-    }
-        
-    num = MAKE_FIXNUM(i);
-    if (GET_FIXNUM(num) != i) {
-        error("fixnum overflow");
-    }
-
-    return num;
-}
-

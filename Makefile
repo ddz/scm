@@ -3,8 +3,8 @@
 #
 
 CFLAGS=-I. -g
-LDLIBS=-lreadline -lcurses -ll
-OBJS=main.o scheme.o scanner.o write.o types.o stk.o strbuf.o symbols.o symtable.o
+LDLIBS=
+OBJS=main.o read.o write.o types.o stk.o strbuf.o pairs.o symbols.o symtable.o
 
 all: scheme
 
@@ -14,15 +14,7 @@ test: scheme
 scheme: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS)
 
-scheme.c: scheme.h
-	$(CC) $(CFLAGS) -c scheme.c
-
-read.c: scheme.h lexer.h stk.h strbuf.h
-
-lexer.c: lexer.h lex.yy.c
-
-lex.yy.c: scheme.l
-	flex -i -olex.yy.c scheme.l
+read.c: scheme.h stk.h strbuf.h
 
 write.c: scheme.h
 
@@ -31,6 +23,8 @@ types.c: scheme.h
 stk.c: stk.h
 
 strbuf.c: strbuf.h
+
+pairs.c: scheme.h
 
 symbols.c: scheme.h
 
