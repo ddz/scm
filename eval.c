@@ -6,6 +6,7 @@
 #include "scheme.h"
 
 static scheme_t eval_each(scheme_t s, env_frame_t* env);
+static scheme_t quasi_eval(scheme_t ls);
 
 scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
 {
@@ -127,9 +128,11 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
             }
                 
             case SCHEME_QUASIQUOTE:
+		return quasi_eval(args, env);
+		
             case SCHEME_UNQUOTE:
             case SCHEME_UNQUOTE_SPLICING:
-                error("NYI");
+                error("Not in quasiquote");
                 
             default:
                 error("Unknown syntactic form\n");
@@ -155,12 +158,18 @@ scheme_t eval_each(scheme_t ls, env_frame_t* env)
 
 scheme_t scheme_apply_2(scheme_t operator, scheme_t operands)
 {
-    struct procedure* proc = GET_PROCEDURE(operator);
-    scheme_t vars = proc->formals;
-    scheme_t vals = operands;
-    env_frame_t* env  = make_environment(proc->env);
-    scheme_t body = proc->body;
-    scheme_t r;
+    struct procedure* proc;
+    scheme_t vars, vals, body, r;
+    env_frame_t* env;
+
+    if (!IS_PROCEDURE(operator))
+	error("apply: Operator must be a procedure.");
+    
+    proc = GET_PROCEDURE(operator);
+    vars = proc->formals;
+    vals = operands;
+    env = make_environment(proc->env);
+    body = proc->body;
     
     /*
      * Bind arguments to procedure parameters
@@ -199,4 +208,29 @@ scheme_t scheme_apply_2(scheme_t operator, scheme_t operands)
      * begin)
      */
     return r;
+}
+
+scheme_t quasi_eval(scheme_t ls, env_frame_t* env)
+{
+    scheme_t a, d, s;
+    
+    if (ls == SCHEME_NIL)
+	return ls;
+
+    a = scheme_car(ls);
+    d = scheme_cdr(ls);
+
+    if (IS_SYMBOL(a)) {
+	s = env_lookup(env, a);
+
+	if (s == SCHEME_UNQUOTE) {
+	    s = scheme_car(d);
+	    return scheme_eval(s, env);
+	}
+	else if (s == SCHEME_UNQUOTE_SPLICING) {
+	    error("Unquote-splicing not yet implemented.");
+	}
+    }
+    else
+	return quasi_eval(d, env);
 }

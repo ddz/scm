@@ -176,6 +176,7 @@ typedef scheme_t cell_t[2];
 
 #define IS_SYMBOL(s)       (IS_CELLPTR(s) && GET_CELLTAG(s) == SYMBOL_T)
 #define IS_STRING(s)       (IS_CELLPTR(s) && GET_CELLTAG(s) == STRING_T)
+#define IS_PROCEDURE(s)    (IS_CELLPTR(s) && GET_CELLTAG(s) == PROCEDURE_T)
 
 #define MAKE_CELL() (MAKE_CELLPTR(malloc(sizeof(cell_t))))
 #define MAKE_PAIR() (MAKE_PAIRPTR(malloc(sizeof(cell_t))))
