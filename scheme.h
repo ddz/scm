@@ -209,7 +209,8 @@ extern scheme_t scheme_write_1(scheme_t); // XXX: Write as lib proc
 
 extern jmp_buf top_level;
 extern char* error_msg;
-#define error(msg) do { error_msg = msg; longjmp(top_level, 1); } while (0)
+//#define error(msg) do { error_msg = msg; longjmp(top_level, 1); } while (0)
+#define error(msg) do { printf(msg); abort(); } while (0)
 extern env_frame_t* top_env;
 
 /*
@@ -290,7 +291,9 @@ typedef struct {
 } sequence_state_t;
 
 extern stk_t read_stk;
-
+extern scheme_t read_tmp;
+extern scheme_t tmp_car;
+extern scheme_t tmp_cdr;
 extern map_t* oblist;
 
 #endif

@@ -17,6 +17,7 @@ static int issubsequent(char);
 static int isinitial(char);
 
 stk_t read_stk = STK_INITIALIZER;
+scheme_t read_tmp = SCHEME_NIL;
 
 sequence_state_t* make_sequence(sequence_type type)
 {
@@ -195,12 +196,12 @@ scheme_t read_token(FILE* f)
 scheme_t scheme_read(FILE* f)
 {
     sequence_state_t* seq = NULL;
-    scheme_t s = SCHEME_UNDEF;
 
+    read_tmp = SCHEME_UNDEF;
     stk_init(&read_stk);
     
-    while ((s = read_token(f)) != SCHEME_EOF) {
-	switch (s) {
+    while ((read_tmp = read_token(f)) != SCHEME_EOF) {
+	switch (read_tmp) {
 	case LP:
 	    seq = make_sequence(LIST);
 	    stk_push(&read_stk, seq);
@@ -215,37 +216,37 @@ scheme_t scheme_read(FILE* f)
 	    if (stk_empty(&read_stk))
 		error("Mismatched parenthesis");
 	    seq = stk_pop(&read_stk);
-	    s = sequence2scheme(seq);
+	    read_tmp = sequence2scheme(seq);
 	    free(seq);
 	    seq = NULL;
 	    break;
 	    
 	case TICK:
 	    seq = make_sequence(LIST);
+	    stk_push(&read_stk, seq);
 	    seq->abbrev = 1;
 	    sequence_add(seq, MAKE_SYMBOL("quote", 5));
-	    stk_push(&read_stk, seq);
 	    continue;
 
 	case BACKTICK:
 	    seq = make_sequence(LIST);
+	    stk_push(&read_stk, seq);
 	    seq->abbrev = 1;
 	    sequence_add(seq, MAKE_SYMBOL("quasiquote", 10));
-	    stk_push(&read_stk, seq);
 	    continue;
 
 	case COMMA:
 	    seq = make_sequence(LIST);
+	    stk_push(&read_stk, seq);
 	    seq->abbrev = 1;
 	    sequence_add(seq, MAKE_SYMBOL("unquote", 7));
-	    stk_push(&read_stk, seq);
 	    continue;
 
 	case COMMAAT:
 	    seq = make_sequence(LIST);
+	    stk_push(&read_stk, seq);
 	    seq->abbrev = 1;
 	    sequence_add(seq, MAKE_SYMBOL("unquote-splicing", 16));
-	    stk_push(&read_stk, seq);
 	    continue;
 
 	case DOT:
@@ -262,22 +263,26 @@ scheme_t scheme_read(FILE* f)
 	    seq = (sequence_state_t*)stk_pop(&read_stk);
 
 	    if (seq->dot) {
-		scheme_set_cdrx(seq->seq.list.tail, s);
+		scheme_set_cdrx(seq->seq.list.tail, read_tmp);
 		seq->dot = 0;
 	    }
-	    else
-		sequence_add(seq, s);
+	    else {
+		stk_push(&read_stk, seq);
+		sequence_add(seq, read_tmp);
+		seq = stk_pop(&read_stk);
+	    }
 
 	    while (seq && seq->abbrev) {
-		s = sequence2scheme(seq);
+		read_tmp = sequence2scheme(seq);
 		free(seq);
 		seq = NULL;
 		if (!stk_empty(&read_stk)) {
-		    seq = (sequence_state_t*)stk_pop(&read_stk);
-		    sequence_add(seq, s);
+		    seq = (sequence_state_t*)stk_top(&read_stk);
+		    sequence_add(seq, read_tmp);
+		    stk_pop(&read_stk);
 		}
 		else
-		    return s;
+		    return read_tmp;
 	    }
 
 	    if (seq)
@@ -285,7 +290,7 @@ scheme_t scheme_read(FILE* f)
 	}
 		    
 	if (stk_empty(&read_stk))
-	    return s;
+	    return read_tmp;
     }
 }
 
@@ -304,7 +309,7 @@ scheme_t read_identifier(FILE* f)
 	}
     }
 
-    s =  MAKE_SYMBOL(strbuf_buffer(&sb), strbuf_length(&sb));
+    s = MAKE_SYMBOL(strbuf_buffer(&sb), strbuf_length(&sb));
     strbuf_reset(&sb);
 
     return s;

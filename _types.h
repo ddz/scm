@@ -170,6 +170,8 @@ typedef scheme_t cell_t[2];
 #define PROCEDURE_T    6
 #define FORWARDPTR_T   7
 
+#define FORWARDED ((FORWARDPTR_T << 3) | 6)
+
 #define GET_CAR(c)         (((scheme_t*)c)[0])
 #define GET_CDR(c)         (((scheme_t*)c)[1])
 #define GET_SYMBOL_NAME(s) ((char*)GET_CDR(GET_PTR(s)))

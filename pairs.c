@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include "scheme.h"
 
+scheme_t tmp_car, tmp_cdr;
+
 scheme_t scheme_pairp(scheme_t s)
 {
     if (IS_PAIRPTR(s))
@@ -16,9 +18,15 @@ scheme_t scheme_pairp(scheme_t s)
 
 scheme_t scheme_cons(scheme_t car, scheme_t cdr)
 {
-    scheme_t s = MAKE_PAIR();
-    GET_CAR(GET_PTR(s)) = car;
-    GET_CDR(GET_PTR(s)) = cdr;
+    scheme_t s;
+
+    tmp_car = car;
+    tmp_cdr = cdr;
+    
+    s = MAKE_PAIR();
+
+    GET_CAR(GET_PTR(s)) = tmp_car;
+    GET_CDR(GET_PTR(s)) = tmp_cdr;
 
     return s;
 }

@@ -19,8 +19,6 @@ static uint8_t* scan = NULL;
 static uint8_t* free_ptr = NULL;
 static int      free_space = 0;
 
-#define FORWARDED ((FORWARDPTR_T << 3) | 6)
-
 static void gc_flip();
 
 void gc_init(size_t size)
@@ -97,6 +95,10 @@ scheme_t gc_copy(scheme_t s)
 void trace_env(env_frame_t* env)
 {
     int i;
+
+    if (env == NULL)
+	return;
+    
     for (i = 0; i < env->bindings->size; i++) {
         map_entry_t* e = env->bindings->table[i];
         while (e) {
@@ -153,6 +155,9 @@ void gc_flip()
         se = se->next;
     }
 
+    if (IS_HEAPPTR(read_tmp))
+	read_tmp = gc_copy(read_tmp);
+    
     /*
      * Scan top level environment
      */
@@ -177,6 +182,11 @@ void gc_flip()
     if (IS_HEAPPTR(args))
         args = gc_copy(args);
 
+    if (IS_HEAPPTR(tmp_car))
+        tmp_car = gc_copy(tmp_car);
+    if (IS_HEAPPTR(tmp_cdr))
+        tmp_cdr = gc_copy(tmp_cdr);
+    
     /*
      * Scan continuation chain
      */
