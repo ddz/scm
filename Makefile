@@ -6,20 +6,26 @@ CC=cc
 CFLAGS=-g -Wall -pedantic
 LDLIBS=-lreadline -ll
 
-all: read
+all: scheme
 
-read: read.o write.o types.o stk.o strbuf.o lexer.o
+scheme: scheme.o read.o lexer.o write.o types.o stk.o strbuf.o
 
-read.o: types.h _types.h lex.yy.c
+scheme.c: scheme.h
 
-lexer.o: lexer.c lexer.h lex.yy.c
+read.c: scheme.h lexer.h stk.h strbuf.h
+
+lexer.c: lexer.h lex.yy.c
 
 lex.yy.c: scheme.l
 	flex scheme.l
 
-write.o: scheme.h
+write.c: scheme.h
 
-types.o: types.c types.h
+types.c: scheme.h
+
+stk.c: stk.h
+
+strbuf.c: strbuf.h
 
 clean:
 	rm *.o lex.yy.c read core *.core *~

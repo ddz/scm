@@ -45,7 +45,7 @@ int main(int argc, char* argv[])
             scheme_t s = read_datum();
             
             if (s != SCHEME_UNSPEC) {
-                scheme_write(s);
+                scheme_write_1(s);
                 printf("\n");
             }
             
@@ -86,13 +86,13 @@ scheme_t read_datum()
         break;
         
     case QUOTE:
-	return SCHEME_CONS(SCHEME_QUOTE, read_list());
+	return scheme_cons(SCHEME_QUOTE, read_list());
     case BACKQUOTE:
-	return SCHEME_CONS(SCHEME_QUASIQUOTE, read_list());
+	return scheme_cons(SCHEME_QUASIQUOTE, read_list());
     case COMMA:
-        return SCHEME_CONS(SCHEME_UNQUOTE, read_list());
+        return scheme_cons(SCHEME_UNQUOTE, read_list());
     case COMMAAT:
-        return SCHEME_CONS(SCHEME_UNQUOTE_SPLICING, read_list());
+        return scheme_cons(SCHEME_UNQUOTE_SPLICING, read_list());
     }
     
     return read_simple(&token);
@@ -140,7 +140,7 @@ scheme_t read_list()
 
     while (!stk_empty(&stk)) {
         scheme_t car = (scheme_t)stk_pop(&stk);
-        ls = SCHEME_CONS(car, ls);
+        ls = scheme_cons(car, ls);
     }
 
     return ls;

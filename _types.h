@@ -157,8 +157,8 @@ typedef scheme_t cell_t[2];
  * implemented.
  */
 
-#define GET_CELLTAG(s) ((SCHEME_CAR(s) >> 3) & 3)
-#define GET_CELLLEN(s) ((SCHEME_CAR(s) >> 5))
+#define GET_CELLTAG(s) ((scheme_car(s) >> 3) & 3)
+#define GET_CELLLEN(s) ((scheme_car(s) >> 5))
 
 #define SYMBOL_T 0
 #define STRING_T 1
@@ -169,5 +169,12 @@ typedef scheme_t cell_t[2];
 
 #define MAKE_CELL() (MAKE_CELLPTR(malloc(sizeof(cell_t))))
 #define MAKE_PAIR() (MAKE_PAIRPTR(malloc(sizeof(cell_t))))
+#define MAKE_SYMBOL(str, size) (make_symbol(str, size))
+#define MAKE_STRING(str, size) (make_string(str, size))
+#define MAKE_VECTOR(vec, elms) (make_vector(vec, elms))
+
+extern scheme_t make_symbol(char*, size_t);
+extern scheme_t make_string(char*, size_t);
+extern scheme_t make_vector(scheme_t*, size_t);
 
 #endif

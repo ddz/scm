@@ -4,9 +4,7 @@
  */
 
 #include <stdio.h>
-#include "types.h"
-
-scheme_t scheme_write(scheme_t);
+#include "scheme.h"
 
 char* synt_names[] = {
     "quote", "lambda", "if", "set!", "begin", "cond", "and", "or",
@@ -16,19 +14,19 @@ char* synt_names[] = {
 
 void write_list(scheme_t list)
 {
-    scheme_t car = SCHEME_CAR(list);
-    scheme_t cdr = SCHEME_CDR(list);
+    scheme_t car = scheme_car(list);
+    scheme_t cdr = scheme_cdr(list);
 
     if (car != SCHEME_NIL)
-	scheme_write(car);
+	scheme_write_1(car);
 
     if (cdr != SCHEME_NIL) {
         printf(" ");
-	if (SCHEME_PAIRP(cdr))
+	if (scheme_pairp(cdr))
 	    write_list(cdr);
 	else {
 	    printf(". ");
-	    scheme_write(cdr);
+	    scheme_write_1(cdr);
 	}
     }
 }
@@ -37,16 +35,16 @@ void write_vector(scheme_t vec)
 {
     int i;
     size_t elems = GET_CELLLEN(vec);
-    scheme_t* vector = (scheme_t*)SCHEME_CDR(vec);
+    scheme_t* vector = (scheme_t*)scheme_cdr(vec);
 
     for (i = 0; i < elems; i++) {
-	scheme_write(vector[i]);
+	scheme_write_1(vector[i]);
         if (i != elems - 1)
             printf(" ");
     }
 }
 
-scheme_t scheme_write(scheme_t obj)
+scheme_t scheme_write_1(scheme_t obj)
 {
     switch (GET_TAG(obj)) {
     case FIXNUM_T:
@@ -107,7 +105,7 @@ scheme_t scheme_write(scheme_t obj)
             switch (GET_CELLTAG(obj)) {
             case STRING_T: {
                 int i, len = GET_CELLLEN(obj);
-                char* str = (char*)SCHEME_CDR(obj);
+                char* str = (char*)scheme_cdr(obj);
                 printf("\"");
                 for (i = 0; i < len; i++) {
                     switch (str[i]) {
@@ -126,7 +124,7 @@ scheme_t scheme_write(scheme_t obj)
             }
                 
             case SYMBOL_T:
-                printf("%s", (char*)SCHEME_CDR(obj));
+                printf("%s", (char*)scheme_cdr(obj));
                 break;
 
 	    case VECTOR_T:
