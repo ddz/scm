@@ -53,6 +53,7 @@ int main(int argc, char* argv[])
     char c;
     scheme_t s, e;
     size_t heap_size = 1024 * 1024;
+    FILE* boot;
     
     while ((c = getopt(argc, argv, "h:")) != EOF) {
         switch (c) {
@@ -86,6 +87,27 @@ int main(int argc, char* argv[])
     
     gc_init(heap_size);
     init_env();
+
+    boot = fopen("boot.scm", "r");
+    while (1) {
+        if (setjmp(top_level) == 0) {
+            if ((s = scheme_read(boot)) == SCHEME_EOF)
+                break;
+            e = scheme_eval(s, top_env);
+            if (e == SCHEME_UNSPEC)
+                continue;
+            scheme_write_1(e);
+        }
+        else {
+	    char c;
+	    while ((c = getc(stdin)) != EOF)
+		if (c == '\n')
+		    break;
+            printf("ERROR: %s", error_msg);
+	}
+        printf("\n");
+    }
+    
     while (1) {
         printf("> ");
         if (setjmp(top_level) == 0) {

@@ -148,8 +148,10 @@ scheme_t read_token(FILE* f)
 		ungetc(c, f);
 		return read_identifier(f);
 	    }
-	    else
+	    else {
+                ungetc(c, f);
 		return read_number(f);
+            }
 
 	case '#': {
 	    char d = getc(f);

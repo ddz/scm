@@ -53,19 +53,23 @@ scheme_t apply_primative(scheme_t rator, scheme_t rands)
      */
     for (i = 0; i < p->data.primative.nargs_req; i++, n++) {
         if (rands == SCHEME_NIL) {
-            error("wrong number of arguments to primative precedure");
+            error("not enough arguments to primative precedure");
         }
         args[n] = scheme_car(rands);
         rands = scheme_cdr(rands);
     }
 
     for (i = 0; i < p->data.primative.nargs_opt &&
-             rands != SCHEME_NIL; i++, n++)
+             rands != SCHEME_NIL; i++, n++) {
         args[n] = scheme_car(rands);
+        rands = scheme_cdr(rands);
+    }
 
     if (p->data.primative.rest)
         args[n++] = rands;
-
+    else if (rands != SCHEME_NIL)
+        error("Too many arguments to primative procedure");
+    
     /*
      * Make the call
      */
