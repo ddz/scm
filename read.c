@@ -10,13 +10,6 @@
 char* prompt0 = "> ";
 char* prompt1 = "? ";
 
-char* token_names[] = {
-    "NULL", "IDENTIFIER", "BOOLEAN", "NUMBER", "CHARACTER",
-    "STRING", "LP", "RP", "SP", "QUOTE", "BACKQUOTE", "COMMA",
-    "COMMAAT", "PERIOD"
-};
-
-
 /*
  * Really primitive and bogus number parsing.  Only parses fixnums
  * (but in any base)
@@ -134,6 +127,10 @@ scheme_t read_token(int token, char* str, size_t n)
 
 }
 
+/*
+ * Read and construct a pair
+ * FIXME: Do this iteratively, not recursively
+ */
 scheme_t read_pair()
 {
     int token = yylex();
@@ -146,6 +143,11 @@ scheme_t read_pair()
         scheme_t cdr = read_pair();
         return scheme_cons(car, cdr);
     }
+    else if (token == YY_NULL) {
+        printf("ERROR: Unbalanced parentheses\n");
+        return SCHEME_UNSPEC;
+    }
+
     else {
         scheme_t car = read_token(token, yytext, yyleng);
         scheme_t cdr = read_pair();
@@ -167,6 +169,10 @@ scheme_t scheme_read() {
     switch(token) {
     case LP:
         return read_pair();
+
+    case RP:
+        printf("ERROR: Unexpected ')'\n");
+        return SCHEME_UNSPEC;
         
     default:
         return read_token(token, yytext, yyleng);
