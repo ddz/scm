@@ -39,8 +39,10 @@ scheme_t read_number(char* str, size_t n)
             break;
         case 'i':
             inexact = 1;
+            break;
         case 'e':
             exact = 1;
+            break;
         default:
             printf("read_number: unknown base or exactness\n");
             return SCHEME_NIL;
@@ -58,9 +60,6 @@ scheme_t read_number(char* str, size_t n)
         else if (i == LONG_MAX) {
             printf("read_number: strtol overflow\n");
             return SCHEME_NIL;
-        }
-        else {
-            printf("range_number: unknown range error\n");
         }
     }
     else if (*endptr) {
