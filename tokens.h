@@ -20,4 +20,6 @@
 #define COMMAAT   12    /* ",@" */
 #define PERIOD    13
 
+#define ERROR 15
+
 #endif

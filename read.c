@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <errno.h>
+#include <setjmp.h>
 #include <readline/readline.h>
 
 #include "scheme.h"
@@ -12,6 +13,8 @@
 
 char* prompt0 = "> ";
 char* prompt1 = "? ";
+
+jmp_buf top_level;
 
 static scheme_t read_datum();
 static scheme_t read_list();
@@ -50,7 +53,7 @@ scheme_t read_number(char* str, int n)
             break;
         default:
             printf("read_number: unknown base or exactness\n");
-            return SCHEME_NIL;
+            return SCHEME_UNSPEC;
         }
         
         str += 2;
@@ -60,22 +63,22 @@ scheme_t read_number(char* str, int n)
     if (errno == ERANGE) {
         if (i == LONG_MIN) {
             printf("read_number: strtol underflow\n");
-            return SCHEME_NIL;
+            return SCHEME_UNSPEC;
         }
         else if (i == LONG_MAX) {
             printf("read_number: strtol overflow\n");
-            return SCHEME_NIL;
+            return SCHEME_UNSPEC;
         }
     }
     else if (*endptr) {
         printf("read_number: illegal character (%c)\n", *endptr);
-        return SCHEME_NIL;
+        return SCHEME_UNSPEC;
     }
         
     num = MAKE_FIXNUM(i);
     if (GET_FIXNUM(num) != i) {
         printf("read_number: fixnum overflow\n");
-        return SCHEME_NIL;
+        return SCHEME_UNSPEC;
     }
 
     return num;
@@ -139,6 +142,9 @@ scheme_t read_datum()
     int token = yylex();
 
     switch (token) {
+    case ERROR:
+	longjmp(top_level, 0);
+	
     case 0:
     case RP:
         return SCHEME_NIL;
@@ -150,6 +156,7 @@ scheme_t read_datum()
 	return read_vector();
 
     case PERIOD:
+	printf("Error: Unexpected '.'\n");
         break;
         
     case QUOTE:
@@ -173,13 +180,21 @@ scheme_t read_list()
     stk_t    stk = STK_INITIALIZER;
     scheme_t s, ls = SCHEME_NIL;
 
-    
-    
     while (1) {
+	int token;
+	
         s = read_datum();
         if (s == SCHEME_NIL)
             break;
         stk_ins(&stk, (void*)s);
+
+	token = yylex();
+	if (token == PERIOD) {
+	    ls = read_datum();
+	    break;
+	}
+	else
+	    yyless(0);
     }
 
     while (!stk_empty(&stk)) {
@@ -187,17 +202,29 @@ scheme_t read_list()
         ls = SCHEME_CONS(car, ls);
     }
 
+    if (ls == SCHEME_NIL)
+	return SCHEME_CONS(SCHEME_NIL, SCHEME_NIL);
     return ls;
 }
 
 scheme_t read_vector()
 {
+    int i = 0, elems = 0;
     que_t que = QUE_INITIALIZER;
     scheme_t s;
+    scheme_t* vector;
 
-    
+    while ((s = read_datum()) != SCHEME_NIL) {
+	elems++;
+	que_ins(&que, (void*)s);
+    }
 
-    return SCHEME_UNSPEC;
+    vector = (scheme_t*)malloc(elems * sizeof(scheme_t));
+
+    while (!que_empty(&que))
+	vector[i++] = (scheme_t)que_rem(&que);
+
+    return MAKE_VECTOR(vector, elems);
 }
 
 int main(int argc, char* argv[])
@@ -207,11 +234,13 @@ int main(int argc, char* argv[])
     while ((line = readline(prompt0)) != NULL) {
 	if (strlen(line) > 0) {
             YY_BUFFER_STATE state = yy_scan_string(line);
-            scheme_t s = read_datum();    /* Read */
-	    /* Eval */
-            scheme_write(s);               /* Print */
-	    add_history(line);
-            printf("\n");
+	    if (!setjmp(top_level)) {
+		scheme_t s = read_datum();    /* Read */
+		/* Eval */
+		scheme_write(s);               /* Print */
+		add_history(line);
+		printf("\n");
+	    }
         }
     }
     

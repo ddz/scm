@@ -5,6 +5,14 @@
 
 #include "types.h"
 
+scheme_t make_vector(scheme_t* vector, size_t elems)
+{
+    scheme_t s = MAKE_CELL();
+    SCHEME_SET_CARX(s, (elems << 5) | (VECTOR_T << 3) | 6);
+    SCHEME_SET_CDRX(s, vector);
+    return s;
+}
+
 scheme_t make_symbol(char* name, size_t len)
 {
     scheme_t s = MAKE_CELL();

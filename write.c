@@ -7,17 +7,42 @@
 
 scheme_t scheme_write(scheme_t);
 
+char* synt_names[] = {
+    "quote", "lambda", "if", "set!", "begin", "cond", "and", "or",
+    "case", "let", "let*", "letrec", "do", "delay", "quasiquote",
+    "else", "=>", "define", "unquote", "unquote-splicing"
+};
+
 void write_list(scheme_t list)
 {
     scheme_t car = SCHEME_CAR(list);
     scheme_t cdr = SCHEME_CDR(list);
-    
-    scheme_write(car);
-    
+
+    if (car != SCHEME_NIL)
+	scheme_write(car);
+
     if (cdr != SCHEME_NIL) {
         printf(" ");
-        write_list(cdr);
+	if (SCHEME_PAIRP(cdr))
+	    write_list(cdr);
+	else {
+	    printf(". ");
+	    scheme_write(cdr);
+	}
     }
+}
+
+void write_vector(scheme_t vec)
+{
+    int i;
+    size_t elems = GET_CELLLEN(vec);
+    scheme_t* vector = (scheme_t*)SCHEME_CDR(vec);
+
+    for (i = 0; i < elems - 1; i++) {
+	scheme_write(vector[i]);
+	printf(" ");
+    }
+    scheme_write(vector[i]);
 }
 
 scheme_t scheme_write(scheme_t obj)
@@ -65,6 +90,7 @@ scheme_t scheme_write(scheme_t obj)
             break;
             
         case SYNT_T:
+	    printf("%s", synt_names[GET_SYNT(obj)]);
             break;
         }
         break;
@@ -101,6 +127,13 @@ scheme_t scheme_write(scheme_t obj)
             case SYMBOL_T:
                 printf("%s", SCHEME_CDR(obj));
                 break;
+
+	    case VECTOR_T:
+		printf("#(");
+		write_vector(obj);
+		printf(")");
+		break;
+		
             default:
                 printf("#<heap pointer>");
             }

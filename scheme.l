@@ -52,8 +52,8 @@ RESERVED		[\[\]{}]
 <STR>\"			{ BEGIN 0; return STRING; }
 \"			{ BEGIN STR; }
 
-{RESERVED}		{ printf("Reserved character: %s\n", yytext); }
-.			{ printf("Unrecognized character: %s\n", yytext); }
+{RESERVED}		{ printf("Reserved character: %s\n", yytext); return ERROR; }
+.			{ printf("Unrecognized character: %s\n", yytext); return ERROR; }
 
 %%
 

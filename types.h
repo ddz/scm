@@ -39,12 +39,13 @@
 #define SCHEME_UNQUOTE SYNT_UNQUOTE         
 #define SCHEME_UNQUOTE_SPLICING SYNT_UNQUOTE_SPLICING
 
-
 /*
  * Macro implementations of scheme built-in procedures following the
  * naming convention SCHEME_<proc>, whith 'P' replacing '?', 'X'
  * replacing '!', and '2' replacing '->'.
  */
+
+#define SCHEME_PAIRP(s) (IS_PAIRPTR(s))
 
 #define SCHEME_INTEGERP(s) (IS_FIXNUM(s) | IS_BIGNUM(s))
 #define SCHEME_RATIONALP(s) (IS_RATNUM(s) | SCHEME_INTEGERP(s))
@@ -63,10 +64,11 @@
 #define SCHEME_CONS(car, cdr) (scheme_cons(car, cdr))
 #define MAKE_SYMBOL(str, size) (make_symbol(str, size))
 #define MAKE_STRING(str, size) (make_string(str, size))
+#define MAKE_VECTOR(vec, elms) (make_vector(vec, elms))
 
 extern scheme_t scheme_cons(scheme_t, scheme_t);
 extern scheme_t make_symbol(char*, size_t);
 extern scheme_t make_string(char*, size_t);
-
+extern scheme_t make_vector(scheme_t*, size_t);
 
 #endif

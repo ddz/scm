@@ -162,6 +162,7 @@ typedef scheme_t cell_t[2];
 
 #define SYMBOL_T 0
 #define STRING_T 1
+#define VECTOR_T 2
 
 #define GET_CAR(c) (((scheme_t*)c)[0])
 #define GET_CDR(c) (((scheme_t*)c)[1])
