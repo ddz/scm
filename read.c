@@ -10,7 +10,6 @@
 
 #include "scheme.h"
 #include "lexer.h"
-#include "que.h"
 #include "stk.h"
 #include "strbuf.h"
 
@@ -118,7 +117,7 @@ scheme_t read_list()
         if (s == SCHEME_NIL)
             break;
         
-        stk_ins(&stk, (void*)s);
+        stk_push(&stk, (void*)s);
 
         lexer_peek_token(&token);
 	if (token.token == PERIOD) {
@@ -140,7 +139,7 @@ scheme_t read_list()
     }
 
     while (!stk_empty(&stk)) {
-        scheme_t car = (scheme_t)stk_rem(&stk);
+        scheme_t car = (scheme_t)stk_pop(&stk);
         ls = SCHEME_CONS(car, ls);
     }
 
@@ -153,24 +152,25 @@ scheme_t read_list()
 scheme_t read_vector()
 {
     int i = 0, elems = 0;
-    que_t que = QUE_INITIALIZER;
+    stk_t stk = STK_INITIALIZER;
     scheme_t s;
     scheme_t* vector;
 
     /*
-     * Read in all the elements into a queue and then move them into a
-     * properly sized array of scheme_t.
+     * Read in all the elements into a stack and then load them
+     * backwards into properly sized array of scheme_t.
      */
     
     while ((s = read_datum()) != SCHEME_NIL) {
 	elems++;
-	que_ins(&que, (void*)s);
+	stk_push(&stk, (void*)s);
     }
 
     vector = (scheme_t*)malloc(elems * sizeof(scheme_t));
 
-    while (!que_empty(&que))
-	vector[i++] = (scheme_t)que_rem(&que);
+    i = elems;
+    while (!stk_empty(&stk))
+	vector[--i] = (scheme_t)stk_pop(&stk);
 
     return MAKE_VECTOR(vector, elems);
 }

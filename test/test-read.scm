@@ -25,7 +25,7 @@ abcd
 (a  b)
 (a   .   b)
 (a . (b . (c d)))
-(a . (b . (c . d))) ; Improper list
+(a . (b . (c . d))) ; Improper list equivalent to (a b c . d)
 
 ;;; Vectors
 #()

@@ -1,5 +1,7 @@
-/* $Id$
+/* $Id$ */
+/*
  * Generic Stack Routines
+ *
  * Dino Dai Zovi <ghandi@cs.unm.edu>
  */
 
@@ -41,9 +43,9 @@ int stk_destroy(stk_t* q)
 }
 
 /*
- * stk_ins - Insert a new element at the top of the stack.
+ * stk_push - Insert a new element at the top of the stack.
  */
-int stk_ins(stk_t* q, void* d)
+int stk_push(stk_t* q, void* d)
 {
     struct stk_elem* n;
     
@@ -69,9 +71,9 @@ int stk_ins(stk_t* q, void* d)
 }
 
 /*
- * stk_rem - Remove element from the front of the stack.
+ * stk_pop - Remove element from the front of the stack.
  */
-void* stk_rem(stk_t* q)
+void* stk_pop(stk_t* q)
 {
     struct stk_elem* e;
     void* d;

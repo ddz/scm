@@ -8,7 +8,7 @@ LDLIBS=-lreadline -ll
 
 all: read
 
-read: read.o write.o types.o stk.o que.o strbuf.o lexer.o
+read: read.o write.o types.o stk.o strbuf.o lexer.o
 
 read.o: types.h _types.h lex.yy.c
 
