@@ -4,9 +4,12 @@
 
 CFLAGS=-I. -g
 LDLIBS=-lreadline -lcurses -ll
-OBJS=scheme.o read.o lexer.o write.o types.o stk.o strbuf.o symbols.o
+OBJS=scheme.o read.o lexer.o write.o types.o stk.o strbuf.o symbols.o symtable.o
 
 all: scheme
+
+test: scheme
+	cd test && $(MAKE)
 
 scheme: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS)
@@ -29,6 +32,8 @@ stk.c: stk.h
 strbuf.c: strbuf.h
 
 symbols.c: scheme.h
+
+symtable.c: scheme.h symtable.h
 
 clean:
 	rm *.o lex.yy.c scheme core *.core *~

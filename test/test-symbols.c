@@ -12,8 +12,8 @@ int main(int argc, char* argv[])
 
     srand(0);
     
-    for (i = 0; i < 1000; i++) {
-        int j, s = rand() % 1024;
+    for (i = 0; i < 10000000; i++) {
+        int j, s = rand() % 6;
         for (j = 0; j < s; j++)
             buf[j] = symchars[rand() % n];
         buf[j] = '\0';
