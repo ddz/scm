@@ -6,7 +6,7 @@
 #include "scheme.h"
 
 static scheme_t eval_each(scheme_t s, env_frame_t* env);
-static scheme_t quasi_eval(scheme_t ls);
+static scheme_t quasi_eval(scheme_t ls, env_frame_t* e);
 
 scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
 {
@@ -128,7 +128,9 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
             }
                 
             case SCHEME_QUASIQUOTE:
-		return quasi_eval(args, env);
+                if (scheme_cdr(args) != SCHEME_NIL)
+                    error("quasiquote: too many expressions");
+		return quasi_eval(scheme_car(args), env);
 		
             case SCHEME_UNQUOTE:
             case SCHEME_UNQUOTE_SPLICING:
@@ -210,27 +212,50 @@ scheme_t scheme_apply_2(scheme_t operator, scheme_t operands)
     return r;
 }
 
-scheme_t quasi_eval(scheme_t ls, env_frame_t* env)
+scheme_t quasi_eval(scheme_t s, env_frame_t* env)
 {
-    scheme_t a, d, s;
-    
-    if (ls == SCHEME_NIL)
-	return ls;
+    if (scheme_pairp(s)) {
+        scheme_t a = scheme_car(s);
+        scheme_t d = scheme_cdr(s);
 
-    a = scheme_car(ls);
-    d = scheme_cdr(ls);
+        if (IS_SYNT(a)) {
+            if (a == SYNT_UNQUOTE) {
+                scheme_t s = scheme_car(d);
 
-    if (IS_SYMBOL(a)) {
-	s = env_lookup(env, a);
+                if (scheme_cdr(d) != SCHEME_NIL)
+                    error("unquote: too many expressions\n");
+                
+                return scheme_eval(s, env);
+            }
+            else if (a == SYNT_UNQUOTE_SPLICING) {
+                error("unquote-splicing: wrong context\n");
+            }
+        }
 
-	if (s == SCHEME_UNQUOTE) {
-	    s = scheme_car(d);
-	    return scheme_eval(s, env);
-	}
-	else if (s == SCHEME_UNQUOTE_SPLICING) {
-	    error("Unquote-splicing not yet implemented.");
-	}
+        else if (scheme_pairp(a)) {
+            scheme_t aa = scheme_car(a);
+            scheme_t ad = scheme_cdr(a);
+
+            if (IS_SYNT(aa)) {
+                if (aa == SYNT_UNQUOTE_SPLICING) {
+                    scheme_t us = scheme_car(ad);
+
+                    if (scheme_cdr(ad) != SCHEME_NIL)
+                        error("unquote-splicing: too many expressions\n");
+                
+                    us = scheme_eval(us, env);
+
+                    if (!scheme_pairp(us))
+                        error("unquote-splicing: must eval to list\n");
+
+                    return scheme_append(us, quasi_eval(d, env));
+                }
+            }
+        }
+        
+        return scheme_cons(quasi_eval(a, env),
+                           quasi_eval(d, env));
     }
-    else
-	return quasi_eval(d, env);
+
+    return s;
 }

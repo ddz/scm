@@ -127,6 +127,8 @@ extern scheme_t scheme_cons(scheme_t, scheme_t);
 #define scheme_set_carx(s, v) (GET_CAR(GET_PTR(s)) = (scheme_t)v)
 #define scheme_set_cdrx(s, v) (GET_CDR(GET_PTR(s)) = (scheme_t)v)
 
+extern scheme_t scheme_append(scheme_t, scheme_t);
+
 /* 6.3.3. Symbols */
 // symbol?
 // symbol->string
