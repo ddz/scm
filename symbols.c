@@ -15,15 +15,17 @@
 static symtable_t* symbol_table = NULL;
 
 /*
- * Make an interned symbol.  Interned symbols are stored all
- * lowercase.
+ * Make an interned symbol.  The stored symbol name is a copy of the
+ * given string converted to all lowercase.
  */
-scheme_t make_intern_symbol(char* name, size_t len)
+scheme_t make_intern_symbol(char* str, size_t len)
 {
     int i;
+    char* name;
     scheme_t s = MAKE_CELL();
     scheme_set_carx(s, (len << 5) | (SYMBOL_T << 3) | 6);
 
+    name = strdup(str);
     /* Symbols are stored all lowercase internally */
     for (i = 0; i < len; i++)
         name[i] = tolower(name[i]);

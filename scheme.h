@@ -65,4 +65,14 @@ extern scheme_t scheme_cons(scheme_t, scheme_t);
 /* 6.6.3 Output */
 extern scheme_t scheme_write_1(scheme_t);
 
+/*
+ * Other cruft
+ */
+
+#include <setjmp.h>
+
+extern jmp_buf top_level;
+extern char* error_msg;
+#define error(msg) do { error_msg = msg; longjmp(top_level, 1); } while (0)
+
 #endif

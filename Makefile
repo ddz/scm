@@ -4,7 +4,7 @@
 
 CFLAGS=-I. -g
 LDLIBS=-lreadline -lcurses -ll
-OBJS=scheme.o read.o lexer.o write.o types.o stk.o strbuf.o symbols.o symtable.o
+OBJS=main.o scheme.o scanner.o write.o types.o stk.o strbuf.o symbols.o symtable.o
 
 all: scheme
 

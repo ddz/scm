@@ -48,6 +48,7 @@ int strbuf_add(strbuf_t* sb, char c)
     }
 
     sb->buf[sb->len++] = c;
+    sb->buf[sb->len] = '\0';
 
     return 0;
 }
