@@ -147,14 +147,15 @@ scheme_t scheme_read(FILE* f)
 
 	    if (isdelimiter(d)) {
 		if (c == '+')
-		    return MAKE_SYMBOL("+", 1);
+		    s = MAKE_SYMBOL("+", 1);
 		else
-		    return MAKE_SYMBOL("-", 1);
+		    s = MAKE_SYMBOL("-", 1);
 	    }
 	    else {
 		ungetc(c, f);
-		return read_number(f);
+		s = read_number(f);
 	    }
+            break;
 	}
 
 	/*

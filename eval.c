@@ -6,7 +6,9 @@
 #include "scheme.h"
 
 static scheme_t eval_each(scheme_t s, env_frame_t* env);
-static scheme_t quasi_eval(scheme_t ls, env_frame_t* e);
+static scheme_t quasi_eval(scheme_t ls, env_frame_t* e, size_t nest);
+
+static char errmsg[1024];
 
 scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
 {
@@ -18,7 +20,9 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
         scheme_t s;
         if (env_lookup(env, sexpr, &s))
             return s;
-        error("reference to undefined identifier");
+        sprintf(errmsg, "reference to undefined identifier: %s",
+                GET_SYMBOL_NAME(sexpr));
+        error(errmsg);
     }
     else if (scheme_pairp(sexpr)) {
         scheme_t op, args;
@@ -130,7 +134,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
             case SCHEME_QUASIQUOTE:
                 if (scheme_cdr(args) != SCHEME_NIL)
                     error("quasiquote: too many expressions");
-		return quasi_eval(scheme_car(args), env);
+		return quasi_eval(scheme_car(args), env, 0);
 		
             case SCHEME_UNQUOTE:
             case SCHEME_UNQUOTE_SPLICING:
@@ -212,20 +216,35 @@ scheme_t scheme_apply_2(scheme_t operator, scheme_t operands)
     return r;
 }
 
-scheme_t quasi_eval(scheme_t s, env_frame_t* env)
+/*
+ * Evaluates quasiquotations (even nested ones where unquotes only
+ * evaluate the expression in the outtermost nesting and decrease the
+ * nesting level otherwise).
+ *
+ * However, it only currently works for list structure, does not do
+ * the quasiquoted vectors correctly.
+ */
+scheme_t quasi_eval(scheme_t s, env_frame_t* env, size_t nest)
 {
     if (scheme_pairp(s)) {
         scheme_t a = scheme_car(s);
         scheme_t d = scheme_cdr(s);
 
         if (IS_SYNT(a)) {
-            if (a == SYNT_UNQUOTE) {
+            if (a == SYNT_QUASIQUOTE) {
+                return scheme_cons(a, quasi_eval(d, env, nest + 1));
+            }
+                    
+            else if (a == SYNT_UNQUOTE) {
                 scheme_t s = scheme_car(d);
 
                 if (scheme_cdr(d) != SCHEME_NIL)
                     error("unquote: too many expressions\n");
-                
-                return scheme_eval(s, env);
+
+                if (nest == 0)
+                    return scheme_eval(s, env);
+                else
+                    return quasi_eval(s, env, nest - 1);
             }
             else if (a == SYNT_UNQUOTE_SPLICING) {
                 error("unquote-splicing: wrong context\n");
@@ -248,13 +267,13 @@ scheme_t quasi_eval(scheme_t s, env_frame_t* env)
                     if (!scheme_pairp(us))
                         error("unquote-splicing: must eval to list\n");
 
-                    return scheme_append(us, quasi_eval(d, env));
+                    return scheme_append(us, quasi_eval(d, env, nest));
                 }
             }
         }
         
-        return scheme_cons(quasi_eval(a, env),
-                           quasi_eval(d, env));
+        return scheme_cons(quasi_eval(a, env, nest),
+                           quasi_eval(d, env, nest));
     }
 
     return s;
