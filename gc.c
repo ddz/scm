@@ -53,8 +53,7 @@ void* gc_alloc(size_t size)
 // Copy scheme_t heap object to new space and return new scheme_t
 scheme_t gc_copy(scheme_t s)
 {
-    if (!IS_HEAPPTR(s))
-        return s;
+    assert(IS_HEAPPTR(s));
 
     if (GET_CAR(GET_PTR(s)) == FORWARDED)
         return GET_CDR(GET_PTR(s));
@@ -73,9 +72,26 @@ scheme_t gc_copy(scheme_t s)
     }
 }
 
-void gc_flip()
+void trace_env(env_frame_t* env)
 {
     int i;
+    for (i = 0; i < env->bindings->size; i++) {
+        map_entry_t* e = env->bindings->table[i];
+        while (e) {
+            if (IS_HEAPPTR((scheme_t)e->key))
+                e->key = (void*)gc_copy((scheme_t)e->key);
+            if (IS_HEAPPTR((scheme_t)e->data))
+                e->data = (void*)gc_copy((scheme_t)e->data);
+            e = e->next;
+        }
+    }
+
+    if (env->env)
+        trace_env(env);
+}
+
+void gc_flip()
+{
     void* tmp = tospace;
     
     tospace = fromspace;
@@ -90,15 +106,8 @@ void gc_flip()
     /*
      * Scan top level environment
      */
-    for (i = 0; i < top_env->bindings->size; i++) {
-        map_entry_t* e = top_env->bindings->table[i];
-        while (e) {
-            e->key = (void*)gc_copy((scheme_t)e->key);
-            e->data = (void*)gc_copy((scheme_t)e->data);
-            e = e->next;
-        }
-    }
-
+    trace_env(top_env);
+    
     /*
      * Scan evaluator registers unless they are immediates
      */
@@ -119,24 +128,31 @@ void gc_flip()
         cell_t* c = (cell_t*)scan;
 
         if ((GET_CAR(*c) & 7) == 6) {
-            GET_CDR(*c) = gc_copy(GET_CDR(*c));
+            if (IS_HEAPPTR(GET_CDR(*c)))
+                GET_CDR(*c) = gc_copy(GET_CDR(*c));
         }
         else {
             switch((GET_CAR(*c) >> 3) & 7) {
             case VECTOR_T: {
                 scheme_t* v = (scheme_t*)GET_CDR(*c);
                 int i, n = GET_CAR(*c) >> 6;
-                for (i = 0; i < n; i++)
-                    v[i] = gc_copy(v[i]);
+                for (i = 0; i < n; i++) {
+                    if (IS_HEAPPTR(v[i]))
+                        v[i] = gc_copy(v[i]);
+                }
             }
                 
             case PROCEDURE_T: {
                 struct procedure* p = (struct procedure*)GET_CDR(*c);
                 if (p->type == COMPOUND) {
-                    p->data.compound.formals =
-                        gc_copy(p->data.compound.formals);
-                    p->data.compound.body =
-                        gc_copy(p->data.compound.body);
+                    // scan the env
+                    trace_env(p->data.compound.env);
+                    if (IS_HEAPPTR(p->data.compound.formals))
+                        p->data.compound.formals =
+                            gc_copy(p->data.compound.formals);
+                    if (IS_HEAPPTR(p->data.compound.body))
+                        p->data.compound.body =
+                            gc_copy(p->data.compound.body);
                 }
             }
             }
