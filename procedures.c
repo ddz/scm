@@ -64,7 +64,7 @@ scheme_t apply_primative(scheme_t rator, scheme_t rands)
         args[n] = scheme_car(rands);
 
     if (p->data.primative.rest)
-        args[n] = rands;
+        args[n++] = rands;
 
     /*
      * Make the call

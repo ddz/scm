@@ -46,3 +46,43 @@ scheme_t make_ratnum(char* num, char* den, int radix)
 
     return s;
 }
+
+scheme_t scheme_plus(scheme_t args)
+{
+    int a = 0;
+    scheme_t s = args;
+    
+    while (s != SCHEME_NIL) {
+	scheme_t n = scheme_car(s);
+	a += GET_FIXNUM(n);
+	s = scheme_cdr(s);
+    }
+    
+    return MAKE_FIXNUM(a);
+}
+
+scheme_t scheme_times(scheme_t args)
+{
+    int a = 1;
+    scheme_t s = args;
+    
+    while (s != SCHEME_NIL) {
+	scheme_t n = scheme_car(s);
+	a *= GET_FIXNUM(n);
+	s = scheme_cdr(s);
+    }
+    
+    return MAKE_FIXNUM(a);
+}
+
+scheme_t scheme_minus(scheme_t a, scheme_t b)
+{
+    return MAKE_FIXNUM(GET_FIXNUM(a) - GET_FIXNUM(b));
+}
+
+scheme_t scheme_equals(scheme_t a, scheme_t b)
+{
+    if (GET_FIXNUM(a) == GET_FIXNUM(b))
+	return SCHEME_TRUE;
+    return SCHEME_FALSE;
+}

@@ -47,11 +47,46 @@ void free_cont(continuation_t* c)
     free(c);
 }
 
+scheme_t mapcar(scheme_t ls)
+{
+    scheme_t s;
+    if (ls == SCHEME_NIL)
+	return SCHEME_NIL;
+    s = scheme_car(ls);
+    return scheme_cons(scheme_car(s), mapcar(scheme_cdr(ls)));
+}
+
+scheme_t mapcadr(scheme_t ls)
+{
+    scheme_t s;
+    if (ls == SCHEME_NIL)
+	return SCHEME_NIL;
+    s = scheme_car(ls);
+    return scheme_cons(scheme_car(scheme_cdr(s)),
+		       mapcadr(scheme_cdr(ls)));
+}
+
+scheme_t make_let(scheme_t vars, scheme_t vals, scheme_t body)
+{
+    return scheme_cons(scheme_cons(MAKE_SYMBOL("lambda", 6),
+				   scheme_cons(vars, body)), vals);
+}
+
+scheme_t scheme_apply(scheme_t proc, scheme_t args)
+{
+    struct procedure* p = GET_PROCEDURE(proc);
+    
+    if (p->type == PRIMATIVE)
+	return apply_primative(proc, args);
+    else
+	error("Can't apply non-primative procedure yet");
+}
+
 scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 {
     expr = sexpr;
     env = e;
-    cont = make_continuation(HALT, NULL, NULL);
+    cont = make_continuation(HALT, env, NULL);
     
  EVAL_EXPRESSION:
     if (IS_SYMBOL(expr)) {
@@ -73,7 +108,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 	    
             switch (rator) {
             case SCHEME_BEGIN: {
-                cont = make_continuation(BEGIN, NULL, cont);
+                cont = make_continuation(BEGIN, env, cont);
                 cont->data.eval_begin.exprs = rands;
             }
                 
@@ -148,6 +183,36 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
                 goto EVAL_EXPRESSION;
             }
 
+	    case SCHEME_LET: {
+		scheme_t vars = mapcar(scheme_car(rands));
+		scheme_t vals = mapcadr(scheme_car(rands));
+		scheme_t body = scheme_cdr(rands);
+
+		expr = make_let(vars, vals, body);
+		
+		goto EVAL_EXPRESSION;
+	    }
+
+	    /*
+	    case SCHEME_APPLY: {
+		scheme_t p = scheme_car(rands);
+		scheme_t a = scheme_car(scheme_cdr(rands));
+
+		printf("apply p: ");
+		scheme_write_1(p);
+		printf("\n");
+		printf("apply a: ");
+		scheme_write_1(a);
+		printf("\n");
+		
+		expr = p;
+		cont = make_continuation(EVAL_RATOR, env, cont);
+		cont->data.eval_rator.rands = a;
+		
+		goto EVAL_EXPRESSION;
+	    }
+	    */
+	    
             default:
                 error("Syntactic form not yet implemented");
             }
@@ -177,6 +242,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
  APPLY_CONT:
     switch (cont->type) {
     case HALT:
+	env = cont->envt;
 	free_cont(cont);
 	cont = NULL;
         return val;
@@ -221,7 +287,6 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
                  cont->data.assignment.var, val);
         val = SCHEME_UNSPEC;
         cont = cont->cont;
-	
 	free_cont(old_cont);
 	
         goto APPLY_CONT;
@@ -233,9 +298,10 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         expr = scheme_car(cont->data.eval_begin.exprs);
         cont->data.eval_begin.exprs =
             scheme_cdr(cont->data.eval_begin.exprs);
-
+	
         if (cont->data.eval_begin.exprs == SCHEME_NIL) {
             cont = cont->cont;
+	    // env = cont->envt;
 	    free_cont(old_cont);
 	}
         
@@ -274,7 +340,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         
         rands = scheme_cdr(cont->data.eval_first.exprs);
         env = cont->envt;
-        cont = make_continuation(EVAL_REST, NULL, cont->cont);
+        cont = make_continuation(EVAL_REST, env, cont->cont);
         cont->data.eval_rest.first_value = val;
 
 	free_cont(old_cont);
@@ -322,7 +388,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 	    /*
 	     * Extend lexical environment with formal parameters
 	     */
-	    env = p->data.compound.env;
+	    env = make_environment(p->data.compound.env);
 	    while (vars != SCHEME_NIL &&
 		   vals != SCHEME_NIL &&
 		   IS_PAIRPTR(vars)) {
@@ -339,6 +405,9 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 	    if (IS_SYMBOL(vars))
 		env_bind(env, vars, vals);
 
+	    if (vars != SCHEME_NIL)
+		error("Not enough args to proc application");
+	    
 	    // Evaluate body as implicit begin
 	    cont = make_continuation(BEGIN, NULL, cont);
 	    cont->data.eval_begin.exprs = p->data.compound.body;

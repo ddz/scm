@@ -125,6 +125,7 @@ typedef int32_t scheme_t;
 #define SYNT_DEFINE           MAKE_SYNT(17)
 #define SYNT_UNQUOTE          MAKE_SYNT(18)
 #define SYNT_UNQUOTE_SPLICING MAKE_SYNT(19)
+#define SYNT_APPLY            MAKE_SYNT(20)
 
 /*
  * Heap pointers:  Third bit distinguishes pair pointers from other

@@ -40,11 +40,12 @@ int env_bind(env_frame_t* env, scheme_t var, scheme_t val)
 
 int env_lookup(env_frame_t* env, scheme_t var, scheme_t* val)
 {
+    int fail;
     void* v;
 
-    v = map_get(env->bindings, (const void*)var);
+    v = map_get(env->bindings, (const void*)var, &fail);
 
-    if (v == NULL) {
+    if (fail) {
         if (env->env)
             return env_lookup(env->env, var, val);
 	*val = SCHEME_UNDEF;

@@ -75,13 +75,17 @@ map_entry_t** map_lookup(map_t* h, const void* key)
     return e;
 }
 
-void* map_get(map_t*h, const void* key)
+void* map_get(map_t*h, const void* key, int* fail)
 {
     map_entry_t** e = map_lookup(h, key);
-    if (e == NULL || *e == NULL)
+    if (e == NULL || *e == NULL) {
+	if (fail) *fail = 1;
         return NULL;
-    else
+    }
+    else {
+	if (fail) *fail = 0;
         return (*e)->data;
+    }
 }
 
 int map_put(map_t* h, void* key, void* data)

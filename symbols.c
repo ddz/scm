@@ -42,7 +42,7 @@ scheme_t make_symbol(char* name, size_t len)
         map_init(oblist, hash_symbol, (map_cmp_t)strcasecmp);
     }
 
-    if ((s = (scheme_t)map_get(oblist, name)) == NULL) {
+    if ((s = (scheme_t)map_get(oblist, name, NULL)) == NULL) {
         int i;
         char* intern_name = malloc(len + 1);
 

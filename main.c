@@ -29,6 +29,11 @@ void init_env()
     define_primative(top_env, "set-car!", scheme_set_carx, 2, 0, 0);
     define_primative(top_env, "set-cdr!", scheme_set_cdrx, 2, 0, 0);
     define_primative(top_env, "load", scheme_load, 1, 0, 0);
+    define_primative(top_env, "+", scheme_plus, 0, 0, 1);
+    define_primative(top_env, "*", scheme_times, 0, 0, 1);
+    define_primative(top_env, "-", scheme_minus, 2, 0, 0);
+    define_primative(top_env, "=", scheme_equals, 2, 0, 0);
+    define_primative(top_env, "apply", scheme_apply, 2, 0, 0);
     
     env_bind(top_env, make_symbol("begin", 5), SCHEME_BEGIN);
     env_bind(top_env, make_symbol("quote", 5), SCHEME_QUOTE);
@@ -40,13 +45,14 @@ void init_env()
     env_bind(top_env, make_symbol("unquote", 7), SCHEME_UNQUOTE);
     env_bind(top_env, make_symbol("quote-splicing", 15),
              SCHEME_UNQUOTE_SPLICING);
+    env_bind(top_env, make_symbol("let", 3), SCHEME_LET);
 }
 
 int main(int argc, char* argv[])
 {
     char c;
     scheme_t s, e;
-    size_t heap_size = 512;
+    size_t heap_size = 1024 * 1024;
     
     while ((c = getopt(argc, argv, "h:")) != EOF) {
         switch (c) {

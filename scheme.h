@@ -57,7 +57,6 @@
 #define SCHEME_UNQUOTE          SYNT_UNQUOTE         
 #define SCHEME_UNQUOTE_SPLICING SYNT_UNQUOTE_SPLICING
 
-
 /*
  * Scheme primitive procedures (organized by R5RS sections)
  */
@@ -75,13 +74,17 @@
 // exact?
 // inexact?
 // =
+extern scheme_t scheme_equals(scheme_t, scheme_t);
 // <
 // >
 // <=
 // >=
 // +
+extern scheme_t scheme_plus(scheme_t);
 // *
+extern scheme_t scheme_times(scheme_t);
 // -
+extern scheme_t scheme_minus(scheme_t, scheme_t);
 // /
 // quotient
 // remainder
@@ -160,7 +163,7 @@ extern scheme_t scheme_set_cdrx(scheme_t, scheme_t);
 
 /* 6.4. Control features */
 // procedure?
-// apply
+extern scheme_t scheme_apply(scheme_t, scheme_t);
 // call-with-current-continuation
 // values
 // call-with-values
@@ -209,8 +212,8 @@ extern scheme_t scheme_load(scheme_t);
 
 extern jmp_buf top_level;
 extern char* error_msg;
-//#define error(msg) do { error_msg = msg; longjmp(top_level, 1); } while (0)
-#define error(msg) do { printf(msg); abort(); } while (0)
+#define error(msg) do { error_msg = msg; longjmp(top_level, 1); } while (0)
+//#define error(msg) do { printf(msg); abort(); } while (0)
 extern env_frame_t* top_env;
 
 /*
