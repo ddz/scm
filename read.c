@@ -96,8 +96,9 @@ scheme_t scheme_read(FILE* f)
 	    if (seq->type == LIST)
 		s = seq->seq.list.head;
 	    else {
-		seq->seq.vector.v = realloc(seq->seq.vector.v,
-					 seq->seq.vector.used);
+		seq->seq.vector.v =
+                    realloc(seq->seq.vector.v,
+                            seq->seq.vector.used * sizeof(scheme_t));
 		s = MAKE_VECTOR(seq->seq.vector.v, seq->seq.vector.used);
 	    }
 	    break;

@@ -23,7 +23,7 @@ scheme_t make_intern_symbol(char* str, size_t len)
     int i;
     char* name;
     scheme_t s = MAKE_CELL();
-    scheme_set_carx(s, (len << 5) | (SYMBOL_T << 3) | 6);
+    scheme_set_carx(s, (len << 6) | (SYMBOL_T << 3) | 6);
 
     name = strdup(str);
     /* Symbols are stored all lowercase internally */
