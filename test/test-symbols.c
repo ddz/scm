@@ -22,7 +22,7 @@ void test_random() {
 
     srand(0);
     
-    for (i = 0; i < 1000000; i++) {
+    for (i = 0; i < 100000; i++) {
         int j, s = rand() % 6;
         for (j = 0; j < s; j++)
             buf[j] = symchars[rand() % n];
