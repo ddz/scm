@@ -2,13 +2,16 @@
 # $Id$
 #
 
-CC=cc
 CFLAGS=-g -Wall -pedantic
-LDLIBS=-lreadline -ll
+LDLIBS=-lreadline -lcurses -ll
 
 all: scheme
 
+test: scheme
+	./scheme < test/test-read.scm | diff - ./test/test-read.out
+
 scheme: scheme.o read.o lexer.o write.o types.o stk.o strbuf.o
+	$(CC) $(CFLAGS) -o $@ $? $(LDFLAGS) $(LDLIBS)
 
 scheme.c: scheme.h
 
@@ -28,4 +31,4 @@ stk.c: stk.h
 strbuf.c: strbuf.h
 
 clean:
-	rm *.o lex.yy.c read core *.core *~
+	rm *.o lex.yy.c scheme core *.core *~

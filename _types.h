@@ -42,7 +42,7 @@
  * Scheme values.
  */
 
-typedef u_int32_t scheme_t;
+typedef int32_t scheme_t;
 
 /*
  * Type tag: two-bit immediate/pointer type tag

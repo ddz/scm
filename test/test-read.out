@@ -1,0 +1,58 @@
+> ;;; Some simple objects
+> #t
+#t
+> #T
+#t
+> #f
+#f
+> #F
+#f
+> #\space
+#\space
+> #\newline
+#\newline
+> #\nEwLiNe
+#\newline
+> #\SpAcE
+#\space
+> #\ 
+#\space
+> #\1
+#\1
+> 
+> ;;; Numbers
+> 1
+1
+> #b10101
+21
+> #d1234
+1234
+> #xbeef
+48879
+> #o666
+438
+> 
+> ;;; Symbols
+> abcd
+abcd
+> 
+> ;;; Lists
+> ()
+()
+> (a  b)
+(a b)
+> (a   .   b)
+(a . b)
+> (a . (b . (c d)))
+(a b c d)
+> (a . (b . (c . d))) ; Improper list equivalent to (a b c . d)
+(a b c . d)
+> 
+> ;;; Vectors
+> #()
+#()
+> #(1 2 3 4)
+#(1 2 3 4)
+> #((1 2) (2 3) (3 4))
+#((1 2) (2 3) (3 4))
+> 
