@@ -33,7 +33,7 @@ int map_resize(map_t* h, size_t size)
     map_entry_t** old_table = h->table;
     
     h->size = size;
-    if (!(h->table = malloc(h->size * sizeof(map_entry_t*)))) {
+    if (!(h->table = calloc(h->size, sizeof(map_entry_t*)))) {
         fprintf(stderr, "map_resize: unable to allocate memory\n");
         return -1;
     }
@@ -86,7 +86,7 @@ void* map_get(map_t*h, const void* key)
 
 int map_put(map_t* h, void* key, void* data)
 {
-    map_entry_t** e;
+    map_entry_t** e = NULL;
     
     if (h->table == NULL)
         map_resize(h, MAP_INIT_SIZE);
@@ -99,7 +99,7 @@ int map_put(map_t* h, void* key, void* data)
         (*e)->data = data;
         (*e)->next = NULL;
 
-        if (++h->used > (h->rehash_threshold * h->size)) {
+        if (++(h->used) > (h->rehash_threshold * h->size)) {
             size_t newsize;
             if (h->rehash_size.type == SIZE)
                 newsize = h->size + h->rehash_size.rehash.size;
@@ -110,6 +110,8 @@ int map_put(map_t* h, void* key, void* data)
         
         return 0;
     }
+
+    (*e)->data = data;
 
     return -1;
 }

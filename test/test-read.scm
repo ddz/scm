@@ -18,14 +18,14 @@
 #o666
 
 ;;; Symbols
-abcd
+'abcd
 
 ;;; Lists
-()
-(a  b)
-(a   .   b)
-(a . (b . (c d)))
-(a . (b . (c . d))) ; Improper list equivalent to (a b c . d)
+'()
+'(a  b)
+'(a   .   b)
+'(a . (b . (c d)))
+'(a . (b . (c . d))) ; Improper list equivalent to (a b c . d)
 
 ;;; Vectors
 #()

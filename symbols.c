@@ -15,12 +15,12 @@ static map_t* oblist = NULL;
 /*
  * A case-insensitive hash_pjw
  */
-size_t hash_intern_string(const void* v)
+size_t hash_symbol(const void* v)
 {
     const char* p = (const char*)v;
     register unsigned int h = 0, g, l, n = strlen(p);
     for (l = n; l > 0; --l) {
-        h = (h<<4) + tolower(*p++);
+        h = (h<<4) + tolower(*p++);  // XXX: is tolower necessary?
         if ((g = h&0xf0000000)) {
             h = h ^ (g>>24);
             h = h^g;
@@ -39,7 +39,7 @@ scheme_t make_symbol(char* name, size_t len)
     
     if (oblist == NULL) {
         oblist = malloc(sizeof(map_t));
-        map_init(oblist, hash_intern_string, (map_cmp_t)strcmp);
+        map_init(oblist, hash_symbol, (map_cmp_t)strcmp);
     }
 
     if ((s = (scheme_t)map_get(oblist, name)) == NULL) {

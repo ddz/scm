@@ -4,7 +4,7 @@
 
 CFLAGS=-I. -g
 LDLIBS=-lgmp
-OBJS=main.o read.o write.o types.o stk.o strbuf.o pairs.o symbols.o numbers.o numberio.o map.o
+OBJS=main.o read.o write.o types.o stk.o strbuf.o pairs.o symbols.o numbers.o numberio.o map.o env.o procedures.o eval.o
 
 all: scheme
 
