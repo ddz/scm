@@ -17,4 +17,6 @@ scheme_t make_procedure(env_frame_t* env, scheme_t formals, scheme_t body)
     
     scheme_set_carx(s, (PROCEDURE_T << 3) | 6);
     scheme_set_cdrx(s, p);
+
+    return s;
 }

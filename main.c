@@ -9,6 +9,9 @@ jmp_buf top_level;
 char* error_msg;
 env_frame_t* top_env = NULL;
 
+/*
+ * Initialize top-level environment
+ */
 void init_env()
 {
     top_env = make_environment(NULL);

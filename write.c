@@ -139,7 +139,12 @@ scheme_t scheme_write_1(scheme_t obj)
 		mpz_out_str(stdout, 10, *bignum);
 		break;
 	    }
-		
+
+            case PROCEDURE_T: {
+                printf("#<procedure>");
+                break;
+            }
+                
             default:
                 printf("#<heap pointer>");
             }

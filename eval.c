@@ -30,15 +30,24 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
          */
         if (IS_SYNT(op)) {
             switch (op) {
+            case SCHEME_LAMBDA: {
+                scheme_t formals, body;
+
+                formals = scheme_car(args);
+                body = scheme_cdr(args);
+                
+                if (body == SCHEME_NIL)
+                    error("lambda: Missing body");
+
+                return make_procedure(env, formals, body);
+            }
+                
             case SCHEME_QUOTE: {
                 scheme_t r = scheme_car(args);
                 if (scheme_cdr(args) != SCHEME_NIL)
                     error("quote: too many arguments");
                 return r;
             }
-                
-            case SCHEME_LAMBDA:
-                error("NYI");
                 
             case SCHEME_IF: {
                 scheme_t test, clauses, consequent, alternate;
@@ -63,6 +72,32 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
                     alternate = scheme_car(s);
                     return scheme_eval(alternate, env);
                 }
+            }
+                
+            case SCHEME_DEFINE: {
+                scheme_t variable, rest, expression;
+
+                if (args == SCHEME_NIL)
+                    error("define: too few expressions");
+                
+                variable = scheme_car(args);
+
+                if (!IS_SYMBOL(variable))
+                    error("define: variable must be a symbol");
+                
+                rest = scheme_cdr(args);
+
+                if (rest == SCHEME_NIL)
+                    error("define: too few expressions");
+                
+                expression = scheme_car(rest);
+
+                if (scheme_cdr(rest) != SCHEME_NIL)
+                    error("define: too many expressions");
+
+                env_bind(env, variable, scheme_eval(expression, env));
+
+                return SCHEME_UNSPEC;
             }
                 
             case SCHEME_SETX: {
@@ -92,34 +127,6 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* env)
             }
                 
             case SCHEME_QUASIQUOTE:
-                error("NYI");
-                
-            case SCHEME_DEFINE: {
-                scheme_t variable, rest, expression;
-
-                if (args == SCHEME_NIL)
-                    error("define: too few expressions");
-                
-                variable = scheme_car(args);
-
-                if (!IS_SYMBOL(variable))
-                    error("define: variable must be a symbol");
-                
-                rest = scheme_cdr(args);
-
-                if (rest == SCHEME_NIL)
-                    error("define: too few expressions");
-                
-                expression = scheme_car(rest);
-
-                if (scheme_cdr(rest) != SCHEME_NIL)
-                    error("define: too many expressions");
-
-                env_bind(env, variable, scheme_eval(expression, env));
-
-                return SCHEME_UNSPEC;
-            }
-                
             case SCHEME_UNQUOTE:
             case SCHEME_UNQUOTE_SPLICING:
                 error("NYI");
@@ -158,7 +165,9 @@ scheme_t scheme_apply_2(scheme_t operator, scheme_t operands)
     /*
      * Bind arguments to procedure parameters
      */
-    do {
+    while (vars != SCHEME_NIL &&
+           vals != SCHEME_NIL &&
+           IS_PAIRPTR(vars)) {
         scheme_t var, val;
         
         if (IS_PAIRPTR(vars))
@@ -171,7 +180,9 @@ scheme_t scheme_apply_2(scheme_t operator, scheme_t operands)
 
         vars = scheme_cdr(vars);
         vals = scheme_cdr(vals);
-    } while (vars != SCHEME_NIL && vals != SCHEME_NIL && IS_PAIRPTR(vars));
+    }
+    if (IS_SYMBOL(vars))
+        env_bind(env, vars, vals);
 
     /*
      * Evaluate each expression in the body in the newly created
@@ -179,6 +190,7 @@ scheme_t scheme_apply_2(scheme_t operator, scheme_t operands)
      */
     while (body != SCHEME_NIL) {
         scheme_t expr = scheme_car(body);
+        body = scheme_cdr(body);
         r = scheme_eval(expr, env);
     }
 
