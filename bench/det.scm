@@ -1,3 +1,9 @@
+(define map2
+  (lambda (f ls1 ls2)
+    (if (null? ls1)
+        '()
+        (cons (f (car ls1) (car ls2)) (map2 f (cdr ls1) (cdr ls2))))))
+
 (define add1
   (lambda (x)
     (+ x 1)))
