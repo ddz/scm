@@ -4,37 +4,33 @@
 #include "tokens.h"
 #include "types.h"
 
-#define YY_DECL scheme_t yylex()
+char* buf = NULL;
+size_t bufsize = 0;
+size_t buflen = 0;
 
-    char* buf = NULL;
-    size_t bufsize = 0;
-    size_t buflen = 0;
-
-    void string_init();
-    void string_add(char*, size_t);
+void string_init();
+void string_add(char*, size_t);
     
 %}
 
 WHITESPACE		[ \n]
-LETTER			[a-zA-Z]
-INITIAL			[a-zA-Z!$%&*/:<=>?^_~]
+LETTER			[a-z]
 SPECIALINITIAL		[!$%&*/:<=>?^_~]
 DIGIT			[0-9]
-SUBSEQUENT		[a-zA-Z!$%&*/:<=>?^_~0-9+\-.@]
 SPECIALSUBSEQUENT	[+\-.@]
-IDENT			[a-zA-Z!$%&*/:<=>?^_~][a-zA-Z!$%&*/:<=>?^_~0-9+\-.@]*
 
 %Start STR
 
 %%
 
+{WHITESPACE}		/* Eat whitespace */
 <STR>\\\"		{ string_add("\"", 1); }
 <STR>\\\\		{ string_add("\\", 1); }
 <STR>[^\\\"]*		{ string_add(yytext, yyleng); }
 <STR>\"			{ BEGIN 0; return STRING; }
 \"			{ BEGIN STR; string_init(); }
 
-{IDENT}|"+"|"-"|"..." 	{ return IDENTIFIER; }
+({LETTER}|{SPECIALINITIAL})({LETTER}|{SPECIALINITIAL}|{DIGIT}|SPECIALSUBSEQUENT)*|"+"|"-"|"..." 	        { return IDENTIFIER; }
 
 "#t"|"#f"		{ return BOOLEAN; }
 #\\.+			{ return CHARACTER; }

@@ -6,18 +6,18 @@
 #ifndef TOKENS_H
 #define TOKENS_H
 
-#define IDENTIFIER 0
-#define BOOLEAN    1
-#define NUMBER     2
-#define CHARACTER  3
-#define STRING     4
-#define LP         5    /* Left parenthesis '(' */
-#define RP         6    /* Right parenthesis ')' */
-#define SP         7    /* Sharp parenthesis '#(' */
-#define QUOTE      8
-#define BACKQUOTE  9
-#define COMMA     10
-#define COMMAAT   11    /* ",@" */
-#define PERIOD    12
+#define IDENTIFIER 1
+#define BOOLEAN    2
+#define NUMBER     3
+#define CHARACTER  4
+#define STRING     5
+#define LP         6    /* Left parenthesis '(' */
+#define RP         7    /* Right parenthesis ')' */
+#define SP         8    /* Sharp parenthesis '#(' */
+#define QUOTE      9
+#define BACKQUOTE 10
+#define COMMA     11
+#define COMMAAT   12    /* ",@" */
+#define PERIOD    13
 
 #endif
