@@ -99,6 +99,22 @@ void* stk_pop(stk_t* q)
 }
 
 /*
+ * stk_top - Return top-most element on stack.
+ */
+void* stk_top(stk_t* q)
+{
+    struct stk_elem* e;
+    void* d;
+
+    if (q->valid != STK_VALID) {
+        errno = EINVAL;
+        return 0;
+    }
+
+    return q->head->data;
+}
+
+/*
  * stk_del - Remove entry containing the specified data
  */
 void* stk_del(stk_t* q, void* d)

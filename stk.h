@@ -27,6 +27,7 @@ extern int   stk_init(stk_t*);
 extern int   stk_destroy(stk_t*);
 extern int   stk_push(stk_t*, void*);
 extern void* stk_pop(stk_t*);
+extern void* stk_top(stk_t*);
 extern void* stk_del(stk_t*, void*);
 extern int   stk_empty(stk_t*);
 

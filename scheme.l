@@ -44,7 +44,9 @@ RESERVED		[\[\]{}]
 "+"{NUMCHARS}+		|
 "-"{NUMCHARS}+		{ return NUMBER; }
 
-#\\[^)]+       		{ return CHARACTER; }
+#\\space		|
+#\\newline		|
+#\\[^{WHITESPACE}]    	{ return CHARACTER; }
 
 <STR>\\\"		{ yymore(); }
 <STR>\\\\		{ yymore(); }

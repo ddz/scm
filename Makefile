@@ -15,13 +15,14 @@ scheme: $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) $(LDFLAGS) $(LDLIBS)
 
 scheme.c: scheme.h
+	$(CC) $(CFLAGS) -c scheme.c
 
 read.c: scheme.h lexer.h stk.h strbuf.h
 
 lexer.c: lexer.h lex.yy.c
 
 lex.yy.c: scheme.l
-	flex -olex.yy.c scheme.l
+	flex -i -olex.yy.c scheme.l
 
 write.c: scheme.h
 

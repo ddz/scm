@@ -5,99 +5,120 @@
 #include <limits.h>
 #include <errno.h>
 #include <setjmp.h>
-#include <readline/history.h>
-#include <readline/readline.h>
 
 #include "scheme.h"
 #include "lexer.h"
 #include "stk.h"
 #include "strbuf.h"
 
+#define error(msg) do { error_msg = msg; longjmp(top_level, 1); } while (0);
+
 char* prompt0 = "> ";
 char* prompt1 = "? ";
 
 jmp_buf top_level;
+char* error_msg;
 
-static scheme_t read_datum();
-static scheme_t read_list();
-static scheme_t read_vector();
+static void     init();
+static void     repl();
+static scheme_t read_datum(int);
+static scheme_t read_list(int);
+static scheme_t read_vector(int);
 static scheme_t read_simple(token_t*);
 static scheme_t read_string(token_t*);
 static scheme_t read_number(token_t*);
 
 int main(int argc, char* argv[])
 {
-    char* line;
-    
-    while ((line = readline(prompt0)) != NULL) {
-        if (strlen(line) == 0)
-            continue;
-
-        /*
-         * Begin scanning the line for tokens
-         */
-        lexer_scan_string(line);
-
-        /*
-         * Set a jmp point so errors return to the top-level
-         */
-        if (!setjmp(top_level)) {
-            scheme_t s;
-	    if ((s = read_datum()) != SCHEME_UNSPEC) {
-		token_t token;
-		lexer_peek_token(&token);
-		if (token.token == RP) {
-		    printf("ERROR: Unbalanced parenthesis\n");
-		    longjmp(top_level, 1);
-		}
-                scheme_write_1(s);
-                printf("\n");
-            }
-            
-            add_history(line);
-        }
-    }
-    
-    return 0;
+    init();
+    repl();
 }
+
+void init()
+{
+    lexer_scan_file(stdin);
+}
+
+void repl(void)
+{
+    scheme_t s;
+
+    printf("> ");
+    while (1) {
+	if (setjmp(top_level) == 0) {
+	    s = scheme_read_0();
+	    if (s == SCHEME_EOF)
+		break;
+	    scheme_write_1(s);
+	}
+	else {
+	    printf("ERROR: %s", error_msg);
+	}
+	printf("\n> ");
+    }
+}
+
+scheme_t scheme_current_input_port()
+{
+    return SCHEME_NIL;
+}
+
+scheme_t scheme_read_0()
+{
+    return scheme_read_1(scheme_current_input_port());
+}
+
+scheme_t scheme_read_1(scheme_t port)
+{
+    return read_datum(0);
+}
+
 
 /*
  * Read a Scheme datum (just about any scheme object)
  */
-scheme_t read_datum()
+scheme_t read_datum(int depth)
 {
     token_t token;
 
     lexer_next_token(&token);
 
     switch (token.token) {
-    case ERROR:
-	longjmp(top_level, 1);
-	
     case 0:
-        return SCHEME_UNSPEC;
+        return SCHEME_EOF;
+	
     case RP:
-        return SCHEME_NIL;
+	if (depth)
+	    return SCHEME_NIL;
+	else
+	    error("Unexpected ')'");
         
     case LP:
-	return read_list();
+	return read_list(depth + 1);
 
     case SP:
-	return read_vector();
+	return read_vector(depth + 1);
 
     case PERIOD:
         /* XXX: ERROR */
-	printf("Error: Unexpected '.'\n");
-        break;
+	error("Error: Unexpected '.'");
         
     case QUOTE:
-	return scheme_cons(SCHEME_QUOTE, read_list());
+	return scheme_cons(SCHEME_QUOTE,
+			   scheme_cons(read_datum(depth + 1),
+				       SCHEME_NIL));
     case BACKQUOTE:
-	return scheme_cons(SCHEME_QUASIQUOTE, read_list());
+	return scheme_cons(SCHEME_QUASIQUOTE,
+			   scheme_cons(read_datum(depth + 1),
+				       SCHEME_NIL));
     case COMMA:
-        return scheme_cons(SCHEME_UNQUOTE, read_list());
+        return scheme_cons(SCHEME_UNQUOTE,
+			   scheme_cons(read_datum(depth + 1),
+				       SCHEME_NIL));
     case COMMAAT:
-        return scheme_cons(SCHEME_UNQUOTE_SPLICING, read_list());
+        return scheme_cons(SCHEME_UNQUOTE_SPLICING,
+			   scheme_cons(read_datum(depth + 1),
+				       SCHEME_NIL));
     }
     
     return read_simple(&token);
@@ -106,7 +127,7 @@ scheme_t read_datum()
 /*
  * Read a list of Scheme objects
  */
-scheme_t read_list()
+scheme_t read_list(int depth)
 {
     stk_t    stk = STK_INITIALIZER;
     scheme_t s, ls = SCHEME_NIL;
@@ -114,9 +135,8 @@ scheme_t read_list()
     while (1) {
 	token_t token;
 	
-        if ((s = read_datum()) == SCHEME_UNSPEC) {
-	    printf("ERROR: Unbalanced parentheses (missing ')')\n");
-	    longjmp(top_level, 1);
+        if ((s = read_datum(depth + 1)) == SCHEME_UNSPEC) {
+	    error("Unbalanced parentheses (missing ')')");
 	}
 
         /*
@@ -131,15 +151,14 @@ scheme_t read_list()
 	if (token.token == PERIOD) {
             lexer_next_token(&token);    /* Eat '.' token */
             
-	    ls = read_datum();
+	    ls = read_datum(depth + 1);
 
             /*
              * Ensure that the . was before the last list element.
              */
             lexer_peek_token(&token);
             if (token.token != RP) {
-                printf("ERROR: Unexpected '.'\n");
-                longjmp(top_level, 1);
+                error("Unexpected '.'");
             }
             lexer_next_token(&token);    /* Eat ')' token */
             
@@ -158,7 +177,7 @@ scheme_t read_list()
 /*
  * Read a vector of Scheme objects
  */
-scheme_t read_vector()
+scheme_t read_vector(int depth)
 {
     int i = 0, elems = 0;
     stk_t stk = STK_INITIALIZER;
@@ -170,7 +189,7 @@ scheme_t read_vector()
      * backwards into properly sized array of scheme_t.
      */
     
-    while ((s = read_datum()) != SCHEME_NIL) {
+    while ((s = read_datum(depth + 1)) != SCHEME_NIL) {
 	elems++;
 	stk_push(&stk, (void*)s);
     }
@@ -215,8 +234,7 @@ scheme_t read_simple(token_t* token)
         return read_string(token);
     }
     
-    printf("ERROR: Unknown simple datum token\n");
-    longjmp(top_level, 1);
+    error("Unknown simple datum token");
     
     return SCHEME_UNSPEC;    /* Never reached */
 }
@@ -242,8 +260,7 @@ scheme_t read_string(token_t* token)
             else if (str[i + 1] == '\"')
                 strbuf_append(&sb, "\"", 1);
             else {
-                printf("ERROR: Unknown string escape\n");
-                longjmp(top_level, 1);
+                error("Unknown string escape");
             }
             i++;
         }
@@ -290,8 +307,7 @@ scheme_t read_number(token_t* token)
             exact = 1;
             break;
         default:
-            printf("read_number: unknown base or exactness\n");
-	    longjmp(top_level, 1);
+	    error("unknown base or exactness");
         }
         
         str += 2;
@@ -300,23 +316,19 @@ scheme_t read_number(token_t* token)
     i = strtol(str, &endptr, base);
     if (errno == ERANGE) {
         if (i == LONG_MIN) {
-            printf("read_number: strtol underflow\n");
-	    longjmp(top_level, 1);
+            error("strtol underflow");
         }
         else if (i == LONG_MAX) {
-            printf("read_number: strtol overflow\n");
-	    longjmp(top_level, 1);
+            error("strtol overflow");
         }
     }
     else if (*endptr) {
-        printf("read_number: illegal character (%c)\n", *endptr);
-	longjmp(top_level, 1);
+        error("illegal character");
     }
         
     num = MAKE_FIXNUM(i);
     if (GET_FIXNUM(num) != i) {
-        printf("read_number: fixnum overflow\n");
-	longjmp(top_level, 1);
+        error("fixnum overflow");
     }
 
     return num;

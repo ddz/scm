@@ -6,13 +6,14 @@
 #ifndef _TYPES_H
 #define _TYPES_H
 
+#include <stdio.h>
 #include <sys/types.h>
 
 /*
- * The data representation used is a hybrid using tagged words and
- * double wrappers.  Tag bits in the low two bits of the word indicate
- * whether it is a pointer to a heap cell or an immediate value (and
- * what type of immediate value it is).  In the first word of a heap
+ * The data representation used is a hybrid using tagged object
+ * pointers.  Tag bits in the low two bits of the word indicate
+ * whether it is a pointer to a heap cell or an immediate object (and
+ * what type of immediate object it is).  In the first word of a heap
  * cell, a specific tag bit value indicates that further type
  * information is contained in a second-stage tag.
  *
@@ -39,7 +40,7 @@
  */
 
 /*
- * Scheme values.
+ * Scheme objects
  */
 
 typedef int32_t scheme_t;
@@ -163,10 +164,12 @@ typedef scheme_t cell_t[2];
 #define SYMBOL_T 0
 #define STRING_T 1
 #define VECTOR_T 2
+#define PORT_T   3
 
 #define GET_CAR(c)         (((scheme_t*)c)[0])
 #define GET_CDR(c)         (((scheme_t*)c)[1])
 #define GET_SYMBOL_NAME(s) ((char*)GET_CDR(GET_PTR(s)))
+
 #define IS_SYMBOL(s)       (IS_CELLPTR(s) && GET_CELLTAG(s) == SYMBOL_T)
 
 #define MAKE_CELL() (MAKE_CELLPTR(malloc(sizeof(cell_t))))
@@ -174,9 +177,11 @@ typedef scheme_t cell_t[2];
 #define MAKE_SYMBOL(str, size) (make_symbol(str, size))
 #define MAKE_STRING(str, size) (make_string(str, size))
 #define MAKE_VECTOR(vec, elms) (make_vector(vec, elms))
+#define MAKE_PORT(f)           (make_port(f))
 
 extern scheme_t make_symbol(char*, size_t);
 extern scheme_t make_string(char*, size_t);
 extern scheme_t make_vector(scheme_t*, size_t);
+extern scheme_t make_port(FILE* f);
 
 #endif
