@@ -13,9 +13,6 @@
 
 #define error(msg) do { error_msg = msg; longjmp(top_level, 1); } while (0);
 
-char* prompt0 = "> ";
-char* prompt1 = "? ";
-
 jmp_buf top_level;
 char* error_msg;
 

@@ -23,6 +23,7 @@ typedef struct {
 extern int    strbuf_init(strbuf_t*);
 extern int    strbuf_destroy(strbuf_t*);
 extern int    strbuf_reset(strbuf_t*);
+extern int    strbuf_add(strbuf_t*, char);
 extern int    strbuf_append(strbuf_t*, char*, size_t);
 extern size_t strbuf_length(strbuf_t*);
 extern char*  strbuf_buffer(strbuf_t*);

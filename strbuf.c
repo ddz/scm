@@ -35,6 +35,23 @@ int strbuf_reset(strbuf_t* sb)
     return 0;
 }
 
+int strbuf_add(strbuf_t* sb, char c)
+{
+    if (sb->len + 1 > sb->size) {
+        while (sb->len + 1 < sb->size) {
+            if (sb->size == 0)
+                sb->size = 1;
+            else
+                sb->size = sb->size * 2;
+        }
+        sb->buf = realloc(sb->buf, sb->size);
+    }
+
+    sb->buf[sb->len++] = c;
+
+    return 0;
+}
+
 int strbuf_append(strbuf_t* sb, char* s, size_t len)
 {
     if (sb->len + len > sb->size) {
