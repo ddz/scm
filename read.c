@@ -296,6 +296,8 @@ scheme_t scheme_read(FILE* f)
 	if (stk_empty(&read_stk))
 	    return read_tmp;
     }
+
+    return read_tmp;
 }
 
 scheme_t read_identifier(FILE* f)

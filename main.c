@@ -89,6 +89,12 @@ int main(int argc, char* argv[])
     init_env();
 
     boot = fopen("boot.scm", "r");
+
+    if (!boot) {
+        perror("Couldn't open scheme bootup file");
+        exit(1);
+    }
+ 
     while (1) {
         if (setjmp(top_level) == 0) {
             if ((s = scheme_read(boot)) == SCHEME_EOF)
