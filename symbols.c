@@ -39,7 +39,7 @@ scheme_t make_symbol(char* name, size_t len)
     
     if (oblist == NULL) {
         oblist = malloc(sizeof(map_t));
-        map_init(oblist, hash_symbol, (map_cmp_t)strcmp);
+        map_init(oblist, hash_symbol, (map_cmp_t)strcasecmp);
     }
 
     if ((s = (scheme_t)map_get(oblist, name)) == NULL) {

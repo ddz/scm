@@ -105,6 +105,8 @@ scheme_t read_token(FILE* f)
 	 * Atmosphere (skip whitespace and comments)
 	 */
 	case ' ':
+        case '\t':
+        case '\r':
 	case '\n':
 	    continue;
 	    

@@ -197,7 +197,7 @@ extern scheme_t scheme_write_1(scheme_t); // XXX: Write as lib proc
 // write-char
 
 /* 6.6.4. System interface */
-// load (optional)
+extern scheme_t scheme_load(scheme_t);
 // transcript-on (optional)
 // transcript-off (optional)
 

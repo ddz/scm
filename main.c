@@ -28,6 +28,7 @@ void init_env()
     define_primative(top_env, "cdr", scheme_cdr, 1, 0, 0);
     define_primative(top_env, "set-car!", scheme_set_carx, 2, 0, 0);
     define_primative(top_env, "set-cdr!", scheme_set_cdrx, 2, 0, 0);
+    define_primative(top_env, "load", scheme_load, 1, 0, 0);
     
     env_bind(top_env, make_symbol("begin", 5), SCHEME_BEGIN);
     env_bind(top_env, make_symbol("quote", 5), SCHEME_QUOTE);

@@ -30,3 +30,26 @@ scheme_t scheme_peek_char_1(scheme_t port)
     ungetc(c, f);
     return MAKE_CHAR(c);
 }
+
+scheme_t scheme_load(scheme_t filename)
+{
+    char* fn;
+    FILE* f;
+    scheme_t s, e;
+    
+    if (!IS_STRING(filename))
+        error("load: expects string\n");
+
+    fn = GET_STRING(filename);
+    f = fopen(fn, "r");
+
+    if (!f)
+        error("load: couldn't open file\n");
+
+    while ((s = scheme_read(f)) != SCHEME_EOF) {
+        e = scheme_eval(s, top_env);
+        scheme_write_1(e);
+    }
+
+    return SCHEME_UNSPEC;
+}

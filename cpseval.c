@@ -28,6 +28,8 @@ scheme_t        val = SCHEME_NIL;
 scheme_t        proc = SCHEME_NIL;
 scheme_t        args = SCHEME_NIL;
 
+static char errbuf[2048];
+
 continuation_t* make_continuation(enum cont_type t,
 				  env_frame_t* e,
 				  continuation_t* c)
@@ -55,10 +57,14 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     if (IS_SYMBOL(expr)) {
         if (env_lookup(env, expr, &val))
             goto APPLY_CONT;
-        error("reference to undefined identifier");
+        snprintf(errbuf, 2000,
+                 "reference to undefined identifier: %s",
+                 GET_SYMBOL_NAME(expr));
+        error(errbuf);
     }
     else if (scheme_pairp(expr) == SCHEME_TRUE) {
-        rator = scheme_car(expr);
+        scheme_t r;
+        r = rator = scheme_car(expr);
         rands = scheme_cdr(expr);
 
         if (IS_SYMBOL(rator) &&
@@ -145,6 +151,12 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             default:
                 error("Syntactic form not yet implemented");
             }
+        }
+        else if (rator == SCHEME_UNDEF) {
+            snprintf(errbuf, 2000,
+                     "reference to undefined identifier: %s",
+                     GET_SYMBOL_NAME(r));
+            error(errbuf);
         }
         else {
             /*
