@@ -272,8 +272,12 @@ extern scheme_t        args;
 
 extern scheme_t        read_tmp;
 
+typedef enum {LIST, VECTOR} sequence_type;
+
 typedef struct {
-    enum {LIST, VECTOR} type;
+    int abbrev;
+    int dot;
+    sequence_type type;
     union {
         struct {
             scheme_t  head;

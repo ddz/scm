@@ -16,17 +16,87 @@ static int isdelimiter(char);
 static int issubsequent(char);
 static int isinitial(char);
 
-scheme_t read_tmp = SCHEME_NIL;
-sequence_state_t* seq = NULL;
-stk_t stk = STK_INITIALIZER;
+sequence_state_t* make_sequence(sequence_type type)
+{
+    sequence_state_t* seq = malloc(sizeof(sequence_state_t));
+    
+    seq->dot = seq->abbrev = 0;
+    seq->type = type;
+    
+    if (type == LIST) {
+	seq->seq.list.head = seq->seq.list.tail = SCHEME_NIL;
+    }
+    else if (type == VECTOR) {
+	seq->seq.vector.used = 0;
+	seq->seq.vector.size = 0;
+	seq->seq.vector.v = NULL;
+    }
 
-scheme_t scheme_read(FILE* f)
+    return seq;
+}
+
+scheme_t sequence2scheme(sequence_state_t* seq)
+{
+    scheme_t s;
+    
+    if (seq->type == LIST)
+	s = seq->seq.list.head;
+    else {
+	seq->seq.vector.v =
+	    realloc(seq->seq.vector.v,
+		    seq->seq.vector.used * sizeof(scheme_t));
+	s = MAKE_VECTOR(seq->seq.vector.v,
+			seq->seq.vector.used);
+    }
+
+    return s;
+}
+
+void sequence_add(sequence_state_t* seq, scheme_t s)
+{
+    if (seq->type == LIST) {
+	scheme_t c = scheme_cons(s, SCHEME_NIL);
+	if (seq->seq.list.tail != SCHEME_NIL)
+	    scheme_set_cdrx(seq->seq.list.tail, c);
+	else
+	    seq->seq.list.head = c;
+	seq->seq.list.tail = c;
+    }
+    else {
+	if (seq->seq.vector.used + 1 > seq->seq.vector.size) {
+	    seq->seq.vector.size = (seq->seq.vector.size * 2) + 1;
+	    seq->seq.vector.v =
+		realloc(seq->seq.vector.v,
+			seq->seq.vector.size * sizeof(scheme_t));
+	}
+	
+	seq->seq.vector.v[seq->seq.vector.used++] = s;
+    }
+}
+
+/*
+ * Read a scheme token: symbol, boolean, number,
+ * character, string, '(', ')', '#(', '\'', '`', ',', ',@', '.'
+ *
+ * The scheme types are returned as their scheme_t types, the other
+ * tokens are returned as newly defined SYNT types.
+ */
+
+#define LP       MAKE_SYNT(64)
+#define RP       MAKE_SYNT(65)
+#define SP       MAKE_SYNT(66)
+#define TICK     MAKE_SYNT(67)
+#define BACKTICK MAKE_SYNT(68)
+#define COMMA    MAKE_SYNT(69)
+#define COMMAAT  MAKE_SYNT(70)
+#define DOT      MAKE_SYNT(71)
+
+scheme_t read_token(FILE* f)
 {
     char c;
+    scheme_t s;
 
     while ((c = getc(f)) != EOF) {
-	read_tmp = SCHEME_UNDEF;
-
 	switch (c) {
 	/*
 	 * Atmosphere (skip whitespace and comments)
@@ -34,221 +104,183 @@ scheme_t scheme_read(FILE* f)
 	case ' ':
 	case '\n':
 	    continue;
+	    
 	case ';':
 	    do { c = getc(f); } while (c != '\n' && c != EOF);
+	    ungetc(c, f);
 	    continue;
 
-	/*
-	 * Begin reading a new list
-	 */
 	case '(':
-	    seq = malloc(sizeof(sequence_state_t));
-	    seq->type = LIST;
-	    seq->seq.list.head = seq->seq.list.tail = SCHEME_NIL;
-	    stk_push(&stk, seq);
-	    continue;
+	    return LP;
 
-	/*
-	 * A '.' may be part of a dotted pair or the peculiar
-	 * identifier '...'.
-	 */
 	case '.': {
-	    char d, e;
-	    if ((c = getc(f)) != '.') {
-		if (stk_empty(&stk) ||
-		    (seq = stk_top(&stk))->type != LIST)
-		    error("Unexpected '.'");
-
-		read_tmp = scheme_read(f);
-		if (read_tmp == SCHEME_EOF)
-		    return read_tmp;
-		scheme_set_cdrx(seq->seq.list.tail, read_tmp);
-		continue;
-	    }
-	    else if ((d = getc(f)) == '.') {
-		read_tmp = MAKE_SYMBOL("...", 3);
-		break;
-	    }
-	    else
-		error("Unexpected '.'");
-	}
-
-	/*
-	 * A sequence (list or vector) closing.
-	 */
-	case ')':
-            if (stk_empty(&stk))
-                error("Unbalanced parenthesis");
-	    seq = (sequence_state_t*)stk_pop(&stk);
-	    if (seq->type == LIST)
-		read_tmp = seq->seq.list.head;
-	    else {
-		seq->seq.vector.v =
-                    realloc(seq->seq.vector.v,
-                            seq->seq.vector.used * sizeof(scheme_t));
-		read_tmp = MAKE_VECTOR(seq->seq.vector.v, seq->seq.vector.used);
-	    }
-	    break;
-
-	case '\"':
-	    read_tmp = read_string(f);
-	    break;
-
-	/*
-	 * Abbreviations
-	 */
-	case ',': {
-	    char d = getc(f);
-	    if (d == '@') {
-		read_tmp = scheme_read(f);
-		read_tmp = scheme_cons(MAKE_SYMBOL("unquote-splicing", 16),
-				scheme_cons(read_tmp, SCHEME_NIL));
-	    }
-	    else {
-		ungetc(d, f);
-		read_tmp = scheme_read(f);
-		read_tmp = scheme_cons(MAKE_SYMBOL("unquote", 7),
-				scheme_cons(read_tmp, SCHEME_NIL));
-	    }
-	    break;
-	}
-	    
-	case '`':
-	    read_tmp = scheme_read(f);
-	    if (read_tmp != SCHEME_EOF)
-		read_tmp = scheme_cons(MAKE_SYMBOL("quasiquote", 10),
-				scheme_cons(read_tmp, SCHEME_NIL));
-	    break;
-	    
-	case '\'':
-	    read_tmp = scheme_read(f);
-	    if (read_tmp != SCHEME_EOF)
-		read_tmp = scheme_cons(MAKE_SYMBOL("quote", 5),
-				scheme_cons(read_tmp, SCHEME_NIL));
-	    break;
-	    
-	case '+':
-	case '-': {
-	    char d = getc(f);
-	    ungetc(d, f);
-
-	    if (isdelimiter(d)) {
-		if (c == '+')
-		    read_tmp = MAKE_SYMBOL("+", 1);
-		else
-		    read_tmp = MAKE_SYMBOL("-", 1);
-	    }
+	    if (isdelimiter(ungetc(getc(f), f)))
+		return DOT;
 	    else {
 		ungetc(c, f);
-		read_tmp = read_number(f);
+		return read_identifier(f);
 	    }
-            break;
 	}
+	    
+	case ')':
+	    return RP;
 
-	/*
-	 * Lisp-like read macros
-	 */
+	case '\"':
+	    return read_string(f);
+
+	case ',':
+	    return COMMA;
+
+	case '`':
+	    return BACKTICK;
+
+	case '\'':
+	    return TICK;
+
+	case '+':
+	case '-':
+	    if (isdelimiter(ungetc(getc(f), f))) {
+		ungetc(c, f);
+		return read_identifier(f);
+	    }
+	    else
+		return read_number(f);
+
 	case '#': {
 	    char d = getc(f);
 	    switch (d) {
 	    case EOF:
 		return SCHEME_EOF;
 
-	    /*
-	     * Opening a vector sequence
-	     */
 	    case '(':
-		seq = malloc(sizeof(sequence_state_t));
-		seq->type = VECTOR;
-		seq->seq.vector.used = 0;
-		seq->seq.vector.size = 0;
-		seq->seq.vector.v = NULL;
-		stk_push(&stk, seq);
-		continue;
-		
+		return SP;
+
 	    case 't':
 	    case 'T':
-		read_tmp = SCHEME_TRUE;
-		break;
-		
+		return SCHEME_TRUE;
+
 	    case 'f':
 	    case 'F':
-		read_tmp = SCHEME_FALSE;
-		break;
-		
-	    case '\\':
-		read_tmp = read_character(f);
-		break;
+		return SCHEME_FALSE;
 
-	    case 'B':
-	    case 'b':
-	    case 'D':
-	    case 'd':
-	    case 'H':
-	    case 'h':
-	    case 'O':
-	    case 'o':
-	    case 'e':
-	    case 'i':
-		ungetc(d, f);
-		ungetc(c, f);
-		read_tmp = read_number(f);
-		break;
-		
+	    case '\\':
+		return read_character(f);
+
 	    default:
 		ungetc(d, f);
 		ungetc(c, f);
-		read_tmp = read_number(f);
-		break;
+		return read_number(f);
 	    }
-	    break;
 	}
-        
+	
 	default:
 	    if (isdigit(c)) {
 		ungetc(c, f);
-		read_tmp = read_number(f);
+		return read_number(f);
 	    }
 	    else if (isinitial(c)) {
 		ungetc(c, f);
-		read_tmp = read_identifier(f);
+		return read_identifier(f);
 	    }
 	    else
 		error("Bad character");
 	}
-
-	/*
-	 * If s has been read (not still SCHEME_UNDEF), add it to the
-	 * current sequence.  If there is no current sequence,
-	 * return s.
-	 */
-
-	if (!stk_empty(&stk)) {
-	    seq = (sequence_state_t*)stk_top(&stk);
-	    if (seq->type == LIST) {
-		scheme_t c = scheme_cons(read_tmp, SCHEME_NIL);
-		if (seq->seq.list.tail != SCHEME_NIL)
-		    scheme_set_cdrx(seq->seq.list.tail, c);
-		else
-		    seq->seq.list.head = c;
-		seq->seq.list.tail = c;
-	    }
-	    else {
-		if (seq->seq.vector.used + 1 > seq->seq.vector.size) {
-		    seq->seq.vector.size = (seq->seq.vector.size * 2) + 1;
-		    seq->seq.vector.v =
-			realloc(seq->seq.vector.v,
-				seq->seq.vector.size * sizeof(scheme_t));
-		}
-
-		seq->seq.vector.v[seq->seq.vector.used++] = read_tmp;
-	    }
-	}
-	else
-	    return read_tmp;
     }
-
+    
     return SCHEME_EOF;
+}
+
+scheme_t scheme_read(FILE* f)
+{
+    stk_t stk = STK_INITIALIZER;
+    sequence_state_t* seq;
+    scheme_t s = SCHEME_UNDEF;
+
+    while ((s = read_token(f)) != SCHEME_EOF) {
+	switch (s) {
+	case LP:
+	    seq = make_sequence(LIST);
+	    stk_push(&stk, seq);
+	    continue;
+	    
+	case SP:
+	    seq = make_sequence(VECTOR);
+	    stk_push(&stk, seq);
+	    continue;
+	    
+	case RP:
+	    s = sequence2scheme(seq);
+	    // free(seq);
+	    seq = NULL;
+	    break;
+	    
+	case TICK:
+	    seq = make_sequence(LIST);
+	    seq->abbrev = 1;
+	    sequence_add(seq, MAKE_SYMBOL("quote", 5));
+	    stk_push(&stk, seq);
+	    continue;
+
+	case BACKTICK:
+	    seq = make_sequence(LIST);
+	    seq->abbrev = 1;
+	    sequence_add(seq, MAKE_SYMBOL("quasiquote", 10));
+	    stk_push(&stk, seq);
+	    continue;
+
+	case COMMA:
+	    seq = make_sequence(LIST);
+	    seq->abbrev = 1;
+	    sequence_add(seq, MAKE_SYMBOL("unquote", 7));
+	    stk_push(&stk, seq);
+	    continue;
+
+	case COMMAAT:
+	    seq = make_sequence(LIST);
+	    seq->abbrev = 1;
+	    sequence_add(seq, MAKE_SYMBOL("unquote-splicing", 16));
+	    stk_push(&stk, seq);
+	    continue;
+
+	case DOT:
+	    if (stk_empty(&stk))
+		error("Illegal use of \".\"\n");
+	    seq = (sequence_state_t*)stk_top(&stk);
+	    if (seq->type != LIST)
+		error("Illegal use of \".\"\n");
+	    seq->dot = 1;
+	    continue;
+	}
+	
+	if (!stk_empty(&stk)) {
+	    seq = (sequence_state_t*)stk_pop(&stk);
+
+	    if (seq->dot) {
+		scheme_set_cdrx(seq->seq.list.tail, s);
+		seq->dot = 0;
+	    }
+	    else
+		sequence_add(seq, s);
+
+	    while (seq && seq->abbrev) {
+		s = sequence2scheme(seq);
+		free(seq);
+		seq = NULL;
+		if (!stk_empty(&stk)) {
+		    seq = (sequence_state_t*)stk_pop(&stk);
+		    sequence_add(seq, s);
+		}
+		else
+		    return s;
+	    }
+
+	    if (seq)
+		stk_push(&stk, seq);
+	}
+		    
+	if (stk_empty(&stk))
+	    return s;
+    }
 }
 
 scheme_t read_identifier(FILE* f)

@@ -133,6 +133,7 @@ void gc_flip()
     if (IS_HEAPPTR(args))
         args = gc_copy(args);
 
+    /*
     if (IS_HEAPPTR(read_tmp))
         read_tmp = gc_copy(read_tmp);
 
@@ -162,6 +163,7 @@ void gc_flip()
             abort();
         }
     }
+    */
     
     c = cont;
     while (c != NULL) {

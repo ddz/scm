@@ -3,6 +3,8 @@
  * Scheme top-level read-eval-print loop
  */
 
+#include <stdio.h>
+#include <stdlib.h>
 #include "scheme.h"
 
 jmp_buf top_level;
