@@ -16,52 +16,18 @@
  * A dirty hack for now while writing the CPS interpreter
  */
 
-enum cont_type {
-    HALT, TEST, VARASSIGN, DEFINITION, BEGIN,
-    EVAL_RATOR, EVAL_RANDS, EVAL_FIRST, EVAL_REST
-};
+/*
+ * Global "registers"
+ */
+scheme_t        expr;
+env_frame_t*    env;
+continuation_t* cont;
+scheme_t        rands;
+scheme_t        val;
+scheme_t        proc;
+scheme_t        args;
 
-typedef struct _continuation {
-    env_frame_t*          envt;
-    struct _continuation* cont;
 
-    enum cont_type type;
-    
-    union {
-        struct {
-            scheme_t true_expr;
-            scheme_t false_expr;
-        } test;
-        
-        struct {
-            scheme_t var;
-        } assignment;
-        
-        struct {
-            scheme_t prim;
-        } prim_args;
-
-        struct {
-            scheme_t exprs;
-        } eval_begin;
-            
-        struct {
-            scheme_t rands;
-        } eval_rator;
-
-        struct {
-            scheme_t proc;
-        } eval_rands;
-
-        struct {
-            scheme_t exprs;
-        } eval_first;
-
-        struct {
-            scheme_t first_value;
-        } eval_rest;
-    } data;
-} continuation_t;
 
 continuation_t* make_continuation(enum cont_type t,
 				  env_frame_t* e,
@@ -82,17 +48,9 @@ void free_cont(continuation_t* c)
 
 scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 {
-    /*
-     * Global "registers"
-     */
-    scheme_t        expr = sexpr;
-    env_frame_t*    env = e;
-    continuation_t* cont = make_continuation(HALT, NULL, NULL);
-    scheme_t        rands;
-    scheme_t        val;
-    scheme_t        proc;
-    scheme_t        args;
-    
+    expr = sexpr;
+    env = e;
+    cont = make_continuation(HALT, NULL, NULL);
     
  EVAL_EXPRESSION:
     if (IS_SYMBOL(expr)) {

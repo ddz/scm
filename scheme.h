@@ -3,6 +3,7 @@
 #ifndef SCHEME_H
 #define SCHEME_H
 
+#include "gc.h"
 #include "_types.h"
 #include "procedures.h"
 
@@ -166,7 +167,7 @@ extern scheme_t scheme_set_cdrx(scheme_t, scheme_t);
 
 
 /* 6.5. Eval */
-// eval
+extern scheme_t scheme_eval(scheme_t, env_frame_t*);
 // scheme-report-environment
 // null-environment
 // interaction-environment (optional)
@@ -208,7 +209,68 @@ extern scheme_t scheme_write_1(scheme_t); // XXX: Write as lib proc
 extern jmp_buf top_level;
 extern char* error_msg;
 #define error(msg) do { error_msg = msg; longjmp(top_level, 1); } while (0)
+extern env_frame_t* top_env;
 
-extern scheme_t scheme_eval(scheme_t, env_frame_t*);
+/*
+ * A dirty hack for now while writing the CPS interpreter
+ */
+
+enum cont_type {
+    HALT, TEST, VARASSIGN, DEFINITION, BEGIN,
+    EVAL_RATOR, EVAL_RANDS, EVAL_FIRST, EVAL_REST
+};
+
+typedef struct _continuation {
+    env_frame_t*          envt;
+    struct _continuation* cont;
+
+    enum cont_type type;
+    
+    union {
+        struct {
+            scheme_t true_expr;
+            scheme_t false_expr;
+        } test;
+        
+        struct {
+            scheme_t var;
+        } assignment;
+        
+        struct {
+            scheme_t prim;
+        } prim_args;
+
+        struct {
+            scheme_t exprs;
+        } eval_begin;
+            
+        struct {
+            scheme_t rands;
+        } eval_rator;
+
+        struct {
+            scheme_t proc;
+        } eval_rands;
+
+        struct {
+            scheme_t exprs;
+        } eval_first;
+
+        struct {
+            scheme_t first_value;
+        } eval_rest;
+    } data;
+} continuation_t;
+
+/*
+ * Global "registers" for evaluator
+ */
+extern scheme_t        expr;
+extern env_frame_t*    env;
+extern continuation_t* cont;
+extern scheme_t        rands;
+extern scheme_t        val;
+extern scheme_t        proc;
+extern scheme_t        args;
 
 #endif

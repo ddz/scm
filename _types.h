@@ -168,6 +168,7 @@ typedef scheme_t cell_t[2];
 #define BIGNUM_T       4
 #define RATNUM_T       5
 #define PROCEDURE_T    6
+#define FORWARDPTR_T   7
 
 #define GET_CAR(c)         (((scheme_t*)c)[0])
 #define GET_CDR(c)         (((scheme_t*)c)[1])
@@ -178,8 +179,8 @@ typedef scheme_t cell_t[2];
 #define IS_STRING(s)       (IS_CELLPTR(s) && GET_CELLTAG(s) == STRING_T)
 #define IS_PROCEDURE(s)    (IS_CELLPTR(s) && GET_CELLTAG(s) == PROCEDURE_T)
 
-#define MAKE_CELL() (MAKE_CELLPTR(malloc(sizeof(cell_t))))
-#define MAKE_PAIR() (MAKE_PAIRPTR(malloc(sizeof(cell_t))))
+#define MAKE_CELL() (MAKE_CELLPTR(gc_alloc(sizeof(cell_t))))
+#define MAKE_PAIR() (MAKE_PAIRPTR(gc_alloc(sizeof(cell_t))))
 #define MAKE_SYMBOL(str, size)  (make_symbol(str, size))
 #define MAKE_STRING(str, size)  (make_string(str, size))
 #define MAKE_VECTOR(vec, elms)  (make_vector(vec, elms))

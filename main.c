@@ -41,7 +41,8 @@ void init_env()
 int main(int argc, char* argv[])
 {
     scheme_t s, e;
-
+    
+    gc_init(512);
     init_env();
     while (1) {
         printf("> ");
