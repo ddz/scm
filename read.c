@@ -115,7 +115,7 @@ scheme_t read_list()
 	token_t token;
 	
         if ((s = read_datum()) == SCHEME_UNSPEC) {
-	    printf("ERROR: Unbalanced parentheses\n");
+	    printf("ERROR: Unbalanced parentheses (missing ')')\n");
 	    longjmp(top_level, 1);
 	}
 
@@ -129,7 +129,7 @@ scheme_t read_list()
 
         lexer_peek_token(&token);
 	if (token.token == PERIOD) {
-            lexer_next_token(&token);
+            lexer_next_token(&token);    /* Eat '.' token */
             
 	    ls = read_datum();
 
@@ -141,6 +141,7 @@ scheme_t read_list()
                 printf("ERROR: Unexpected '.'\n");
                 longjmp(top_level, 1);
             }
+            lexer_next_token(&token);    /* Eat ')' token */
             
 	    break;
 	}
