@@ -39,6 +39,7 @@ int env_lookup(env_frame_t* env, scheme_t var, scheme_t* val)
     if (v == NULL) {
         if (env->env)
             return env_lookup(env->env, var, val);
+	*val = SCHEME_UNDEF;
         return 0;
     }
     else if (val)

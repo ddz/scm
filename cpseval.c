@@ -3,6 +3,10 @@
  * Continuation Passing Style evaluator modeled after the imperative
  * interpreter written in Scheme in Essentials of Programming
  * Languages (Friedman, Wand, Haynes).
+ *
+ * This makes the interpreter fully tail-recursive, utilizing tail
+ * calls wherever possible, not just when tail recursive functions
+ * call themselves.
  */
 
 #include <stdlib.h>
@@ -77,6 +81,11 @@ continuation_t* make_continuation(enum cont_type t)
     return c;
 }
 
+void free_cont(continuation_t* c)
+{
+    free(c);
+}
+
 scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 {
     /*
@@ -100,10 +109,13 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     else if (scheme_pairp(expr)) {
         scheme_t rator, rands;
 
-        rator = scheme_eval(scheme_car(expr), env);
-        rands = scheme_cdr (expr);
+        rator = scheme_car(expr);
+        rands = scheme_cdr(expr);
 
-        if (IS_SYNT(rator)) {
+        if (IS_SYMBOL(rator) &&
+	    env_lookup(env, rator, &rator) &&
+	    IS_SYNT(rator)) {
+	    
             switch (rator) {
             case SCHEME_BEGIN: {
                 continuation_t* old_cont = cont;
@@ -218,7 +230,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
  APPLY_CONT:
     switch (cont->type) {
     case HALT:
-	free(cont);
+	free_cont(cont);
         return val;
 
     case TEST: {
@@ -231,7 +243,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         env = cont->data.test.env;
         cont = cont->data.test.cont;
 
-	free(old_cont);
+	free_cont(old_cont);
 	
         goto EVAL_EXPRESSION;
     }
@@ -246,7 +258,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             val = SCHEME_UNSPEC;
             cont = cont->data.assignment.cont;
 
-	    free(old_cont);
+	    free_cont(old_cont);
 	    
             goto APPLY_CONT;
         }
@@ -262,7 +274,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         val = SCHEME_UNSPEC;
         cont = cont->data.assignment.cont;
 	
-	free(old_cont);
+	free_cont(old_cont);
 	
         goto APPLY_CONT;
     }
@@ -274,7 +286,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         error("Primatives don't exist yet");
 
         cont = cont->data.prim_args.cont;
-	free(old_cont);
+	free_cont(old_cont);
 
         goto APPLY_CONT;
     }
@@ -288,7 +300,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 
         if (cont->data.eval_begin.exprs == SCHEME_NIL) {
             cont = cont->data.eval_begin.cont;
-	    free(old_cont);
+	    free_cont(old_cont);
 	}
         
         goto EVAL_EXPRESSION;
@@ -304,7 +316,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         cont->data.eval_rands.proc = val;
         cont->data.eval_rands.cont = new_cont;
 	
-	free(old_cont);
+	free_cont(old_cont);
 	
         goto EVAL_RANDS;
     }
@@ -316,7 +328,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             args = val;
             cont = cont->data.eval_rands.cont;
 
-	    free(old_cont);
+	    free_cont(old_cont);
 	    
             goto APPLY_PROCVAL;
         }
@@ -333,7 +345,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         cont->data.eval_rest.first_value = val;
         cont->data.eval_rest.cont = new_cont;
 
-	free(old_cont);
+	free_cont(old_cont);
 	
         goto EVAL_RANDS;
     }
@@ -343,7 +355,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         val = scheme_cons(cont->data.eval_rest.first_value, val);
         cont = cont->data.eval_rest.cont;
 
-	free(old_cont);
+	free_cont(old_cont);
 	
         goto APPLY_CONT;
     }
@@ -366,6 +378,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     }
     
  APPLY_PROCVAL: {
+	continuation_t* new_cont = cont;
         struct procedure* p = GET_PROCEDURE(proc);
         scheme_t vars = p->formals;
         scheme_t vals = args;
@@ -391,8 +404,10 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             env_bind(env, vars, vals);
 
         // Evaluate body as implicit begin
-        expr = scheme_cons(make_symbol("begin", 5), p->body);
-
-        goto EVAL_EXPRESSION;
+	cont = make_continuation(BEGIN);
+	cont->data.eval_begin.exprs = p->body;
+	cont->data.eval_begin.cont = new_cont;
+	
+        goto APPLY_CONT;
     }
 }
