@@ -8,42 +8,42 @@
 
 #include <sys/types.h>
 
+/*
+ * Scheme values.
+ */
+
 typedef u_int32_t scheme_t;
 
-/* Tag 0:
- *   000 - Immediate value (type determined by further stages)
- *   010 - Fixnum (immediate integer)
- *   100 - Heap cell pointer (type determined by further stages)
- *   110 - Heap pair pointer
+/*
+ * Type tag: two-bit immediate/pointer type tag
+ *   00 - Immediate integer (fixnum)
+ *   01 - Immediate floating point (short float)
+ *   10 - Other immediate value (char, bool, etc.)
+ *   11 - Heap pointer
  */
 
-#define TAG_MASK ((1 << 2) | (1 << 1) | (1 << 0))
-#define IMMVAL_T 0
-#define FIXNUM_T ((IMMVAL_T) | (1 << 1))
-#define CELLPTR_T (1 << 2)
-#define PAIRPTR_T (CELL_PTR | (1 << 1))
+#define TAG_MASK ((1 << 1) | (1 << 0))
+#define FIXNUM_T  0
+#define SHRTFL_T  1
+#define IMMVAL_T  2
+#define HEAPPTR_T 3
 
-#define GET_TAG(s) (s & TAG_MASK)
-#define GET_FIXNUM(s) (s >> 3)
-#define GET_PTR(s) ((scheme_t*)(s & ~TAG_MASK))
+#define GET_TAG(s)   (s & TAG_MASK)
+#define IS_FIXNUM(s)  (GET_TAG(s) == FIXNUM_T)
+#define IS_SHRTFL(s)  (GET_TAG(s) == SHRTFL_T)
+#define IS_IMMVAL(s)  (GET_TAG(s) == IMMVAL_T)
+#define IS_HEAPPTR(s) (GET_TAG(s) == HEAPPTR_T)
 
-#define IS_IMMVAL(s) (GET_TAG(s) == IMMVAL_T)
-#define IS_FIXNUM(s) (GET_TAG(s) == FIXNUM_T)
-#define IS_CELL(s)   (GET_TAG(s) == CELLPTR_T)
-#define IS_PAIR(s)   (GET_TAG(s) == PAIRPTR_T)
-
-#define MAKE_FIXNUM(i) ((i << 3) | FIXNUM_T)
-#define MAKE_CELLPTR(p) (p | CELLPTR_T)
-#define MAKE_PAIRPTR(p) (p | PAIRPTR_T)
+#define MAKE_FIXNUM(i)  ((i << 2) | FIXNUM_T)
+/* #define MAKE_SHRTFL(f) (...) */
 
 /*
- * Tag 1 (immediate value type tag):
+ * Other immediate values are distinguished by a tag in bits 3 and 4:
  *   00 - boolean
  *   01 - character
- *   10 - unique
+ *   10 - unique value
  *   11 - special form
  */
-
 #define IMM_TAG_MASK ((1 << 4) | (1 << 3))
 #define BOOL_T (0 << 3)
 #define CHAR_T (1 << 3)
@@ -73,58 +73,30 @@ typedef u_int32_t scheme_t;
 #define UNIQ_UNSPEC MAKE_UNIQ(2)
 #define UNIQ_UNDEF  MAKE_UNIQ(3)
 
-typedef scheme_t* cell_t;
+/*
+ * Heap pointers:  Third bit distinguishes pair pointers from other
+ *                 heap cells.
+ */
+#define PTRTAG_MASK ((1 << 2) | (1 << 1) | (1 << 0))
+#define CELLPTR_T   ((0 << 2) | (1 << 1) | (1 << 0))
+#define PAIRPTR_T   ((1 << 2) | (1 << 1) | (1 << 0))
 
-#define CLOSURE_T (1 << 0)
-#define NUMBER_T  ((1 << 1) | (1 << 0))
-#define BIGNUM_T  ((0 << 3) | NUMBER_T)
-#define RATNUM_T  ((1 << 3) | NUMBER_T)
-#define FLONUM_T  ((2 << 3) | NUMBER_T)
-#define REALNUM_T ((3 << 3) | NUMBER_T)
-#define RECTNUM_T ((4 << 3) | NUMBER_T)
-#define COMPNUM_T ((5 << 3) | NUMBER_T)
-#define LENPTR_T  ((1 << 2) | (1 << 0))
-#define SYMBOL_T  ((0 << 3) | LENPTR_T)
-#define STRING_T  ((1 << 3) | LENPTR_T)
-#define VECTOR_T  ((2 << 3) | LENPTR_T)
-#define PORT_T    ((3 << 3) | LENPTR_T)
-#define OBJECT_T  ((1 << 2) | (1 << 1) | (1 << 0))
+#define GET_PTRTAG(s) (s & PTRTAG_MASK)
+#define IS_CELLPTR(s) (GET_PTRTAG(s) == CELLPTR_T)
+#define IS_PAIRPTR(s) (GET_PTRTAG(s) == PAIRPTR_T)
 
-#define GET_CELL_TAG(s)    ((*GET_PTR(s)) & TAG_MASK)
-#define GET_CELL_CAR(s)    ((*GET_PTR(s)) & ~1)
-#define GET_CELL_CDR(s)    (*(GET_PTR(s) + 1))
-#define GET_CELL_NUMBER(s) GET_CELL_CDR(s)
-#define GET_CELL_LENGTH(s) (GET_CELL_CAR(s) >> 5)
-#define GET_CELL_PTR(s)    GET_CELL_CDR(s)
-#define GET_OBJECT_TYPE(s) (GET_CELL_CAR(s) >> 3)
-#define GET_OBJECT_PTR(s)  GET_CELL_CDR(s)
+#define MAKE_CELLPTR(p) (s | CELLPTR_T)
+#define MAKE_PAIRPTR(p) (s | PAIRPTR_T)
 
-#define IS_CLOSURE(s)  (GET_CELL_TAG(s) == CLOSURE_T)
-#define IS_NUMBER(s)   (GET_CELL_TAG(s) == NUMBER_T)
-#define IS_BIGNUM(s)   (GET_CELL_TAG(s) == BIGNUM_T)
-#define IS_RATNUM(s)   (GET_CELL_TAG(s) == RATNUM_T)
-#define IS_FLONUM(s)   (GET_CELL_TAG(s) == FLONUM_T)
-#define IS_REALNUM(s)  (GET_CELL_TAG(s) == REALNUM_T)
-#define IS_RECTNUM(s)  (GET_CELL_TAG(s) == RECTNUM_T)
-#define IS_COMPNUM(s)  (GET_CELL_TAG(s) == COMPNUM_T)
-#define IS_LENPTR(s)   (GET_CELL_TAG(s) == LENPTR_T)
-#define IS_SYMBOL(s)   (GET_CELL_TAG(s) == SYMBOL_T)
-#define IS_STRING(s)   (GET_CELL_TAG(s) == STRING_T)
-#define IS_VECTOR(s)   (GET_CELL_TAG(s) == VECTOR_T)
-#define IS_PORT(s)     (GET_CELL_TAG(s) == PORT_T)
-#define IS_OBJECT(s)   (GET_CELL_TAG(s) == OBJECT_T)
+/*
+ * Scheme Heap cells
+ */
 
-#define SET_CELL_CAR(s, a)    (*GET_PTR(s) = a)
-#define SET_CELL_CDR(s, d)    (*(GET_PTR(s) + 1) = d)
-#define SET_CELL_TAG(s, t)    (*GET_PTR(s) |= t)
-#define SET_CELL_LENGTH(s, n) (*GET_PTR(s) |= (n << 5))
-#define SET_CELL_PTR(s, p)    (*(GET_PTR(s) + 1) = p)
-#define SET_OBJECT_TYPE(s, t) (*GET_PTR(s) |= (t << 3))
-#define SET_OBJECT_PTR(s, p)  SET_CELL_PTR(s, p)
+typedef scheme_t cell_t[2];
 
-#define MARK_CELL(s)      (*(GET_PTR(s) + 1) |= 1)
-#define UNMARK_CELL(s)    (*(GET_PTR(s) + 1) &= ~1)
-#define IS_CELL_MARKED(s) (*(GET_PTR(s) + 1) & 1)
-
+/*
+ * The cell type is assumed to be a pair unless the low three bits of
+ * the first cell word are 110.
+ */
 
 #endif

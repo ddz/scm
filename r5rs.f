@@ -14,28 +14,43 @@ void string_add(char*, size_t);
 %}
 
 WHITESPACE		[ \n]
-LETTER			[a-z]
+LETTER			[a-zA-Z]
 SPECIALINITIAL		[!$%&*/:<=>?^_~]
+INITIAL			[a-zA-Z!$%&*/:<=>?^_~]
 DIGIT			[0-9]
+DIGIT2			[01]
+DIGIT8			[0-7]
+DIGIT16			[0-9a-fA-F]
 SPECIALSUBSEQUENT	[+\-.@]
+SUBSEQUENT		[a-zA-Z!$%&*/:<=>?^_~0-9+\-.@]
 
-%Start STR
+%x STR
 
 %%
 
 {WHITESPACE}		/* Eat whitespace */
+;.*			/* Eat comments */
+
+{INITIAL}{SUBSEQUENT}*	|
+"+"|"-"|"..."		{ return IDENTIFIER; }
+	
+"#t"|"#f"		{ return BOOLEAN; }
+
+#[bodx].+		|
+#[ie].+			|
+{DIGIT}*		|
+"+".+			|
+"-".+			{ return NUMBER; }
+
+#\\(.|\n|space|newline)	{ return CHARACTER; }
+
 <STR>\\\"		{ string_add("\"", 1); }
 <STR>\\\\		{ string_add("\\", 1); }
-<STR>[^\\\"]*		{ string_add(yytext, yyleng); }
+<STR>[^\\\"]*		{ string_add(yytext, yyleng);  }
 <STR>\"			{ BEGIN 0; return STRING; }
 \"			{ BEGIN STR; string_init(); }
 
-({LETTER}|{SPECIALINITIAL})({LETTER}|{SPECIALINITIAL}|{DIGIT}|SPECIALSUBSEQUENT)*|"+"|"-"|"..." 	        { return IDENTIFIER; }
-
-"#t"|"#f"		{ return BOOLEAN; }
-#\\.+			{ return CHARACTER; }
 "#("			{ return SP; }
-
 "("			{ return LP; }
 ")"			{ return RP; }
 "'"			{ return QUOTE; }

@@ -10,7 +10,7 @@ all: read
 
 read: read.o
 
-read.o: lex.yy.c tokens.h types.h
+read.o: lex.yy.c tokens.h types.h _types.h
 
 lex.yy.c: r5rs.f
 	$(LEX) r5rs.f
