@@ -74,36 +74,56 @@ typedef u_int32_t scheme_t;
  *   00 - boolean
  *   01 - character
  *   10 - unique value
- *   11 - special form
+ *   11 - syntactic keyword
  */
 #define IMM_TAG_MASK ((1 << 4) | (1 << 3))
 #define BOOL_T (0 << 3)
 #define CHAR_T (1 << 3)
 #define UNIQ_T (1 << 4)
-#define SPEC_T ((1 << 4) | (1 << 3))
+#define SYNT_T ((1 << 4) | (1 << 3))
 
 #define GET_IMM_TAG(s) (s & IMM_TAG_MASK)
 #define GET_BOOL(s) (s & (1 << 5))
 #define GET_CHAR(s) (s >> 16)
 #define GET_UNIQ(s) (s >> 16)
-#define GET_SPEC(s) (s >> 16)
+#define GET_SYNT(s) (s >> 16)
 
 #define IS_BOOL(s) (GET_IMM_TAG(s) == BOOL_T)
 #define IS_CHAR(s) (GET_IMM_TAG(s) == CHAR_T)
 #define IS_UNIQ(s) (GET_IMM_TAG(s) == UNIQ_T)
-#define IS_SPEC(s) (GET_IMM_TAG(s) == SPEC_T)
+#define IS_SYNT(s) (GET_IMM_TAG(s) == SYNT_T)
 
 #define MAKE_BOOL(b) ((b << 5)  | BOOL_T | IMMVAL_T)
 #define MAKE_CHAR(c) ((c << 16) | CHAR_T | IMMVAL_T)
 #define MAKE_UNIQ(u) ((u << 6)  | UNIQ_T | IMMVAL_T)
-#define MAKE_SPEC(s) ((s << 16) | SPEC_T | IMMVAL_T)
+#define MAKE_SYNT(s) ((s << 16) | SYNT_T | IMMVAL_T)
 
-#define BOOL_FALSE  MAKE_BOOL(0)
-#define BOOL_TRUE   MAKE_BOOL(1)
-#define UNIQ_NIL    MAKE_UNIQ(0)
-#define UNIQ_EOF    MAKE_UNIQ(1)
-#define UNIQ_UNSPEC MAKE_UNIQ(2)
-#define UNIQ_UNDEF  MAKE_UNIQ(3)
+#define BOOL_FALSE            MAKE_BOOL(0)
+#define BOOL_TRUE             MAKE_BOOL(1)
+#define UNIQ_NIL              MAKE_UNIQ(0)
+#define UNIQ_EOF              MAKE_UNIQ(1)
+#define UNIQ_UNSPEC           MAKE_UNIQ(2)
+#define UNIQ_UNDEF            MAKE_UNIQ(3)
+#define SYNT_QUOTE            MAKE_SYNT(0)
+#define SYNT_LAMBDA           MAKE_SYNT(1)
+#define SYNT_IF               MAKE_SYNT(2)
+#define SYNT_SETX             MAKE_SYNT(3)
+#define SYNT_BEGIN            MAKE_SYNT(4)
+#define SYNT_COND             MAKE_SYNT(5)
+#define SYNT_AND              MAKE_SYNT(6)
+#define SYNT_OR               MAKE_SYNT(7)
+#define SYNT_CASE             MAKE_SYNT(8)
+#define SYNT_LET              MAKE_SYNT(9)
+#define SYNT_LETS             MAKE_SYNT(10)
+#define SYNT_LETREC           MAKE_SYNT(11)
+#define SYNT_DO               MAKE_SYNT(12)
+#define SYNT_DELAY            MAKE_SYNT(13)
+#define SYNT_QUASIQUOTE       MAKE_SYNT(14)
+#define SYNT_ELSE             MAKE_SYNT(15)
+#define SYNT_EQGT             MAKE_SYNT(16)
+#define SYNT_DEFINE           MAKE_SYNT(17)
+#define SYNT_UNQUOTE          MAKE_SYNT(18)
+#define SYNT_UNQUOTE_SPLICING MAKE_SYNT(19)
 
 /*
  * Heap pointers:  Third bit distinguishes pair pointers from other

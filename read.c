@@ -6,22 +6,85 @@
 #include <readline/readline.h>
 
 #include "scheme.h"
-#include "fstropen.h"
+#include "lex.yy.c"
 #include "que.h"
+#include "stk.h"
 
 char* prompt0 = "> ";
 char* prompt1 = "? ";
 
-scheme_t read_number(FILE* f)
+static scheme_t read_datum();
+static scheme_t read_list();
+static scheme_t read_vector();
+static scheme_t read_simple(char* str, int len);
+static scheme_t read_number(char* str, int len);
+
+scheme_t read_number(char* str, int n)
 {
-    printf("READ NUMBER: <%s>\n", str);
-    return SCHEME_UNSPEC;
+    scheme_t num;
+    char* endptr = NULL;
+    int i = -1, base = 10, exact = 0, inexact = 0;
+
+    /*
+     * Read in any optional base or exactness flags
+     */
+    while (str[0] == '#') {
+        switch (str[1]) {
+        case 'b':
+            base = 2;
+            break;
+        case 'o':
+            base = 8;
+            break;
+        case 'd':
+            base = 10;
+            break;
+        case 'x':
+            base = 16;
+            break;
+        case 'i':
+            inexact = 1;
+            break;
+        case 'e':
+            exact = 1;
+            break;
+        default:
+            printf("read_number: unknown base or exactness\n");
+            return SCHEME_NIL;
+        }
+        
+        str += 2;
+    }
+
+    i = strtol(str, &endptr, base);
+    if (errno == ERANGE) {
+        if (i == LONG_MIN) {
+            printf("read_number: strtol underflow\n");
+            return SCHEME_NIL;
+        }
+        else if (i == LONG_MAX) {
+            printf("read_number: strtol overflow\n");
+            return SCHEME_NIL;
+        }
+    }
+    else if (*endptr) {
+        printf("read_number: illegal character (%c)\n", *endptr);
+        return SCHEME_NIL;
+    }
+        
+    num = MAKE_FIXNUM(i);
+    if (GET_FIXNUM(num) != i) {
+        printf("read_number: fixnum overflow\n");
+        return SCHEME_NIL;
+    }
+
+    return num;
 }
 
 /*
  * Read a simple datum (boolean, number, character, string, or symbol)
  */
-scheme_t read_simple(FILE* f)
+scheme_t read_simple(char* str, int len)
 {
     if (str[0] == '#') {
 	switch (str[1]) {
@@ -35,7 +98,7 @@ scheme_t read_simple(FILE* f)
 	case 'x':
 	case 'i':
 	case 'e':
-	    return read_number(str);
+	    return read_number(str, len);
 	case '\\':
 	    if (strncasecmp(str + 2, "space", 5) == 0)
 		return MAKE_CHAR(' ');
@@ -63,7 +126,7 @@ scheme_t read_simple(FILE* f)
     }
 
     else if (isdigit(str[0]))
-	return read_number(str);
+	return read_number(str, len);
     
     else {
 	printf("ERROR: Unknown simple datum <%s>\n", str);
@@ -71,52 +134,70 @@ scheme_t read_simple(FILE* f)
     }
 }
 
-scheme_t read_list(FILE* f)
+scheme_t read_datum()
 {
-    printf("READ_LIST");
-    return SCHEME_UNSPEC;
-}
+    int token = yylex();
 
-scheme_t read_vector(FILE* f)
-{
-    que_t q;
+    switch (token) {
+    case 0:
+    case RP:
+        return SCHEME_NIL;
+        
+    case LP:
+	return read_list();
 
-    printf("READ VECTOR");
-    return SCHEME_UNSPEC;
-}
+    case SP:
+	return read_vector();
 
-scheme_t read_datum(FILE* f)
-{
-    char* tok, *ptr = str;
-
-    while (isspace(str[i])) i++;
-
-    switch (str[i]) {
-    case '(':
-	return read_list(str, i + 1, SCHEME_NIL);
-    case '\'':
-	return read_list(str, i + 1,
-			 SCHEME_CONS(MAKE_SYMBOL("quote", 5),
-				     SCHEME_NIL));
-    case '`':
-	return read_list(str, i + 1,
-			 SCHEME_CONS(MAKE_SYMBOL("quasiquote", 10),
-				     SCHEME_NIL));
-    case ',':
-	if (str[i + 1] == '@')
-	    return read_list(str, i + 2,
-			     SCHEME_CONS(MAKE_SYMBOL("unquote-splicing", 16),
-					 SCHEME_NIL));
-	else
-	    return read_list(str, i + 1,
-			     SCHEME_CONS(MAKE_SYMBOL("unquote", 7),
-					 SCHEME_NIL));
+    case PERIOD:
+        break;
+        
+    case QUOTE:
+	return SCHEME_CONS(SCHEME_QUOTE, read_list());
+    case BACKQUOTE:
+	return SCHEME_CONS(SCHEME_QUASIQUOTE, read_list());
+    case COMMA:
+        return SCHEME_CONS(SCHEME_UNQUOTE, read_list());
+               
+    case COMMAAT:
+        return SCHEME_CONS(SCHEME_UNQUOTE_SPLICING, read_list());
+               
+    default:
+	return read_simple(yytext, yyleng);
     }
-	
-    if (strncmp(str + i, "#(", 2) == 0)
-	return read_vector(str, i);
-    else
-	return read_simple(str);
+    
+}
+
+scheme_t read_list()
+{
+    stk_t    stk = STK_INITIALIZER;
+    scheme_t s, ls = SCHEME_NIL;
+
+    
+    
+    while (1) {
+        s = read_datum();
+        if (s == SCHEME_NIL)
+            break;
+        stk_ins(&stk, (void*)s);
+    }
+
+    while (!stk_empty(&stk)) {
+        scheme_t car = (scheme_t)stk_rem(&stk);
+        ls = SCHEME_CONS(car, ls);
+    }
+
+    return ls;
+}
+
+scheme_t read_vector()
+{
+    que_t que = QUE_INITIALIZER;
+    scheme_t s;
+
+    
+
+    return SCHEME_UNSPEC;
 }
 
 int main(int argc, char* argv[])
@@ -125,8 +206,8 @@ int main(int argc, char* argv[])
     
     while ((line = readline(prompt0)) != NULL) {
 	if (strlen(line) > 0) {
-	    FILE* f = fstropen(line);
-            scheme_t s = read_datum(f);    /* Read */
+            YY_BUFFER_STATE state = yy_scan_string(line);
+            scheme_t s = read_datum();    /* Read */
 	    /* Eval */
             scheme_write(s);               /* Print */
 	    add_history(line);

@@ -4,13 +4,16 @@
 
 CC=cc
 CFLAGS=-g
-LDLIBS=-lreadline
+LDLIBS=-lreadline -ll
 
 all: read
 
-read: read.o write.o types.o
+read: read.o write.o types.o stk.o que.o
 
-read.o: scheme.h
+read.o: scheme.h lex.yy.c
+
+lex.yy.c: scheme.l
+	flex scheme.l
 
 write.o: scheme.h
 

@@ -18,6 +18,28 @@
 #define SCHEME_UNDEF UNIQ_UNDEF
 #define SCHEME_UNSPEC UNIQ_UNSPEC
 
+#define SCHEME_QUOTE SYNT_QUOTE
+#define SCHEME_LAMBDA SYNT_LAMBDA
+#define SCHEME_IF SYNT_IF              
+#define SCHEME_SETX SYNT_SETX            
+#define SCHEME_BEGIN SYNT_BEGIN           
+#define SCHEME_COND SYNT_COND            
+#define SCHEME_AND SYNT_AND             
+#define SCHEME_OR SYNT_OR              
+#define SCHEME_CASE SYNT_CASE            
+#define SCHEME_LET SYNT_LET             
+#define SCHEME_LETS SYNT_LETS            
+#define SCHEME_LETREC SYNT_LETREC          
+#define SCHEME_DO SYNT_DO              
+#define SCHEME_DELAY SYNT_DELAY           
+#define SCHEME_QUASIQUOTE SYNT_QUASIQUOTE      
+#define SCHEME_ELSE SYNT_ELSE            
+#define SCHEME_EQGT SYNT_EQGT            
+#define SCHEME_DEFINE SYNT_DEFINE          
+#define SCHEME_UNQUOTE SYNT_UNQUOTE         
+#define SCHEME_UNQUOTE_SPLICING SYNT_UNQUOTE_SPLICING
+
+
 /*
  * Macro implementations of scheme built-in procedures following the
  * naming convention SCHEME_<proc>, whith 'P' replacing '?', 'X'

@@ -64,7 +64,7 @@ scheme_t scheme_write(scheme_t obj)
                 printf("#<undefined>");
             break;
             
-        case SPEC_T:
+        case SYNT_T:
             break;
         }
         break;
