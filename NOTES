@@ -1,0 +1,5 @@
+Implementation notes:
+ - Use GNU mp library (gmp) for numerical calculations (LGPL license)
+   - Investigate g4 altivec optimizations
+   - provides multiple precision integers, rationals, and floats
+
