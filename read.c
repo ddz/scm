@@ -114,13 +114,13 @@ scheme_t scheme_read(FILE* f)
 	    char d = getc(f);
 	    if (d == '@') {
 		s = scheme_read(f);
-		s = scheme_cons(SCHEME_UNQUOTE_SPLICING,
+		s = scheme_cons(MAKE_SYMBOL("unquote-splicing", 16),
 				scheme_cons(s, SCHEME_NIL));
 	    }
 	    else {
 		ungetc(d, f);
 		s = scheme_read(f);
-		s = scheme_cons(SCHEME_UNQUOTE,
+		s = scheme_cons(MAKE_SYMBOL("unquote", 7),
 				scheme_cons(s, SCHEME_NIL));
 	    }
 	    break;
@@ -129,14 +129,14 @@ scheme_t scheme_read(FILE* f)
 	case '`':
 	    s = scheme_read(f);
 	    if (s != SCHEME_EOF)
-		s = scheme_cons(SCHEME_QUASIQUOTE,
+		s = scheme_cons(MAKE_SYMBOL("quasiquote", 10),
 				scheme_cons(s, SCHEME_NIL));
 	    break;
 	    
 	case '\'':
 	    s = scheme_read(f);
 	    if (s != SCHEME_EOF)
-		s = scheme_cons(SCHEME_QUOTE,
+		s = scheme_cons(MAKE_SYMBOL("quote", 5),
 				scheme_cons(s, SCHEME_NIL));
 	    break;
 	    

@@ -28,5 +28,7 @@ pairs.c: scheme.h
 
 symbols.c: scheme.h
 
+procedures.c: scheme.h env.h procedures.h
+
 clean:
 	rm *.o lex.yy.c scheme core *.core *~

@@ -22,63 +22,57 @@ enum cont_type {
 };
 
 typedef struct _continuation {
+    env_frame_t*          envt;
+    struct _continuation* cont;
+
     enum cont_type type;
     
     union {
         struct {
             scheme_t true_expr;
             scheme_t false_expr;
-            env_frame_t* env;
-            struct _continuation* cont;
         } test;
         
         struct {
-            env_frame_t* env;
             scheme_t var;
-            struct _continuation* cont;
         } assignment;
         
         struct {
             scheme_t prim;
-            struct _continuation* cont;
         } prim_args;
 
         struct {
             scheme_t exprs;
-            struct _continuation* cont;
         } eval_begin;
             
         struct {
             scheme_t rands;
-            env_frame_t* env;
-            struct _continuation* cont;
         } eval_rator;
 
         struct {
             scheme_t proc;
-            struct _continuation* cont;
         } eval_rands;
 
         struct {
             scheme_t exprs;
-            env_frame_t* env;
-            struct _continuation* cont;
         } eval_first;
 
         struct {
             scheme_t first_value;
-            struct _continuation* cont;
         } eval_rest;
     } data;
-    
 } continuation_t;
 
-continuation_t* make_continuation(enum cont_type t)
+continuation_t* make_continuation(enum cont_type t,
+				  env_frame_t* e,
+				  continuation_t* c)
 {
-    continuation_t* c = malloc(sizeof(continuation_t));
-    c->type = t;
+    continuation_t* cont = malloc(sizeof(continuation_t));
+    cont->type = t;
+    cont->envt = e;
+    cont->cont = c;
     
-    return c;
+    return cont;
 }
 
 void free_cont(continuation_t* c)
@@ -93,7 +87,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
      */
     scheme_t        expr = sexpr;
     env_frame_t*    env = e;
-    continuation_t* cont = make_continuation(HALT);
+    continuation_t* cont = make_continuation(HALT, NULL, NULL);
     scheme_t        rands;
     scheme_t        val;
     scheme_t        proc;
@@ -118,11 +112,8 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 	    
             switch (rator) {
             case SCHEME_BEGIN: {
-                continuation_t* old_cont = cont;
-
-                cont = make_continuation(BEGIN);
+                cont = make_continuation(BEGIN, NULL, cont);
                 cont->data.eval_begin.exprs = rands;
-                cont->data.eval_begin.cont = old_cont;
             }
                 
             case SCHEME_LAMBDA: {
@@ -144,7 +135,6 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 
             case SCHEME_IF: {
                 scheme_t test, clauses, true_expr, false_expr;
-                continuation_t* old_cont = cont;
                 
                 test = scheme_car(rands);
                 clauses = scheme_cdr(rands);
@@ -160,25 +150,19 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
                     false_expr = scheme_car(scheme_cdr(clauses));
 
                 expr = test;
-                cont = make_continuation(TEST);
+                cont = make_continuation(TEST, env, cont);
                 cont->data.test.true_expr = true_expr;
                 cont->data.test.false_expr = false_expr;
-                cont->data.test.env = env;
-                cont->data.test.cont = old_cont;
 
                 goto EVAL_EXPRESSION;
             }
 
             case SCHEME_DEFINE: {
-                continuation_t* old_cont = cont;
-                
                 if (rands == SCHEME_NIL)
                     error("define: too few expressions");
 
-                cont = make_continuation(DEFINITION);
-                cont->data.assignment.env = env;
+                cont = make_continuation(DEFINITION, env, cont);
                 cont->data.assignment.var = scheme_car(rands);
-                cont->data.assignment.cont = old_cont;
 
                 if (scheme_cdr(rands) == SCHEME_NIL)
                     error("define: too few expressions");
@@ -189,15 +173,11 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             }
                 
             case SCHEME_SETX: {
-                continuation_t* old_cont = cont;
-                
                 if (rands == SCHEME_NIL)
                     error("set!: too few expressions");
 
-                cont = make_continuation(VARASSIGN);
-                cont->data.assignment.env = env;
+                cont = make_continuation(VARASSIGN, env, cont);
                 cont->data.assignment.var = scheme_car(rands);
-                cont->data.assignment.cont = old_cont;
 
                 if (scheme_cdr(rands) == SCHEME_NIL)
                     error("set!: too few expressions");
@@ -212,12 +192,9 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             }
         }
         else {
-            continuation_t* old_cont = cont;
             expr = rator;
-            cont = make_continuation(EVAL_RATOR);
+            cont = make_continuation(EVAL_RATOR, env, cont);
             cont->data.eval_rator.rands = rands;
-            cont->data.eval_rator.env = env;
-            cont->data.eval_rator.cont = old_cont;
 
             goto EVAL_EXPRESSION;
         }
@@ -240,8 +217,8 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             expr = cont->data.test.true_expr;
         else
             expr = cont->data.test.false_expr;
-        env = cont->data.test.env;
-        cont = cont->data.test.cont;
+        env = cont->envt;
+        cont = cont->cont;
 
 	free_cont(old_cont);
 	
@@ -251,12 +228,12 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     case VARASSIGN: {
 	continuation_t* old_cont = cont;
 	
-        if (env_lookup(cont->data.assignment.env,
+        if (env_lookup(cont->envt,
                        cont->data.assignment.var, NULL)) {
-            env_bind(cont->data.assignment.env,
+            env_bind(cont->envt,
                      cont->data.assignment.var, val);
             val = SCHEME_UNSPEC;
-            cont = cont->data.assignment.cont;
+            cont = cont->cont;
 
 	    free_cont(old_cont);
 	    
@@ -269,10 +246,10 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     case DEFINITION: {
 	continuation_t* old_cont = cont;
 	
-        env_bind(cont->data.assignment.env,
+        env_bind(cont->envt,
                  cont->data.assignment.var, val);
         val = SCHEME_UNSPEC;
-        cont = cont->data.assignment.cont;
+        cont = cont->cont;
 	
 	free_cont(old_cont);
 	
@@ -285,7 +262,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         // val = apply_primative(cont->data.prim_args.prim, val);
         error("Primatives don't exist yet");
 
-        cont = cont->data.prim_args.cont;
+        cont = cont->cont;
 	free_cont(old_cont);
 
         goto APPLY_CONT;
@@ -299,7 +276,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
             scheme_cdr(cont->data.eval_begin.exprs);
 
         if (cont->data.eval_begin.exprs == SCHEME_NIL) {
-            cont = cont->data.eval_begin.cont;
+            cont = cont->cont;
 	    free_cont(old_cont);
 	}
         
@@ -308,13 +285,11 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     
     case EVAL_RATOR: {
 	continuation_t* old_cont = cont;
-        continuation_t* new_cont = cont->data.eval_rator.cont;
         
         rands = cont->data.eval_rator.rands;
-        env = cont->data.eval_rator.env;
-        cont = make_continuation(EVAL_RANDS);
+        env = cont->envt;
+        cont = make_continuation(EVAL_RANDS, NULL, cont->cont);
         cont->data.eval_rands.proc = val;
-        cont->data.eval_rands.cont = new_cont;
 	
 	free_cont(old_cont);
 	
@@ -326,7 +301,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 	    continuation_t* old_cont = cont;
             proc = cont->data.eval_rands.proc;
             args = val;
-            cont = cont->data.eval_rands.cont;
+            cont = cont->cont;
 
 	    free_cont(old_cont);
 	    
@@ -337,13 +312,11 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 
     case EVAL_FIRST: {
 	continuation_t* old_cont = cont;
-        continuation_t* new_cont = cont->data.eval_first.cont;
         
         rands = scheme_cdr(cont->data.eval_first.exprs);
-        env = cont->data.eval_first.env;
-        cont = make_continuation(EVAL_REST);
+        env = cont->envt;
+        cont = make_continuation(EVAL_REST, NULL, cont->cont);
         cont->data.eval_rest.first_value = val;
-        cont->data.eval_rest.cont = new_cont;
 
 	free_cont(old_cont);
 	
@@ -353,7 +326,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     case EVAL_REST: {
 	continuation_t* old_cont = cont;
         val = scheme_cons(cont->data.eval_rest.first_value, val);
-        cont = cont->data.eval_rest.cont;
+        cont = cont->cont;
 
 	free_cont(old_cont);
 	
@@ -367,47 +340,56 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         goto APPLY_CONT;
     }
     else {
-        continuation_t* new_cont = cont;
         expr = scheme_car(rands);
-        cont = make_continuation(EVAL_FIRST);
+        cont = make_continuation(EVAL_FIRST, env, cont);
         cont->data.eval_first.exprs = rands;
-        cont->data.eval_first.env = env;
-        cont->data.eval_first.cont = new_cont;
 
         goto EVAL_EXPRESSION;
     }
     
  APPLY_PROCVAL: {
-	continuation_t* new_cont = cont;
         struct procedure* p = GET_PROCEDURE(proc);
-        scheme_t vars = p->formals;
-        scheme_t vals = args;
-        
-        /*
-         * Extend lexical environment with formal parameters
-         */
-        env = p->env;
-        while (vars != SCHEME_NIL &&
-               vals != SCHEME_NIL &&
-               IS_PAIRPTR(vars)) {
-            scheme_t var, val;
-            
-            var = scheme_car(vars);
-            val = scheme_car(vals);
-            
-            env_bind(env, var, val);
-            
-            vars = scheme_cdr(vars);
-            vals = scheme_cdr(vals);
-        }
-        if (IS_SYMBOL(vars))
-            env_bind(env, vars, vals);
 
-        // Evaluate body as implicit begin
-	cont = make_continuation(BEGIN);
-	cont->data.eval_begin.exprs = p->body;
-	cont->data.eval_begin.cont = new_cont;
+	if (p->type == PRIMATIVE) {
+            /*
+	    continuation_t* old_cont = cont;
+	    cont = cont->cont;
+	    free(old_cont);
+            */
+
+	    val = (*p->data.primative.f)(args);
+
+            goto APPLY_CONT;
+	}
+	else {
+	    scheme_t vars = p->data.compound.formals;
+	    scheme_t vals = args;
+        
+	    /*
+	     * Extend lexical environment with formal parameters
+	     */
+	    env = p->data.compound.env;
+	    while (vars != SCHEME_NIL &&
+		   vals != SCHEME_NIL &&
+		   IS_PAIRPTR(vars)) {
+		scheme_t var, val;
+		
+		var = scheme_car(vars);
+		val = scheme_car(vals);
+		
+		env_bind(env, var, val);
+		
+		vars = scheme_cdr(vars);
+		vals = scheme_cdr(vals);
+	    }
+	    if (IS_SYMBOL(vars))
+		env_bind(env, vars, vals);
+
+	    // Evaluate body as implicit begin
+	    cont = make_continuation(BEGIN, NULL, cont);
+	    cont->data.eval_begin.exprs = p->data.compound.body;
 	
-        goto APPLY_CONT;
+	    goto APPLY_CONT;
+	}
     }
 }
