@@ -4,11 +4,14 @@
  */
 
 #include <stdlib.h>
+#ifdef GMP
 #include <gmp.h>
+#endif
 #include "scheme.h"
 
 scheme_t make_bignum(char* str, int radix)
 {
+#ifdef GMP
     scheme_t s;
     mpz_t* bignum = malloc(sizeof(mpz_t));
 
@@ -24,10 +27,14 @@ scheme_t make_bignum(char* str, int radix)
     GET_CDR(GET_PTR(s)) = (scheme_t)bignum;
 
     return s;
+#else
+    error("bignums not supported");
+#endif
 }
 
 scheme_t make_ratnum(char* num, char* den, int radix)
 {
+#ifdef GMP
     scheme_t s;
     mpq_t* ratnum = malloc(sizeof(mpq_t));
 
@@ -45,6 +52,9 @@ scheme_t make_ratnum(char* num, char* den, int radix)
     GET_CDR(GET_PTR(s)) = (scheme_t)ratnum;
 
     return s;
+#else
+    error("ratnums not supported");
+#endif
 }
 
 scheme_t scheme_plus(scheme_t args)

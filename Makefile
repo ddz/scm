@@ -2,8 +2,8 @@
 # $Id$
 #
 
-CFLAGS=-I. -g
-LDLIBS=-lgmp
+CFLAGS=-I. -O9
+#LDLIBS=-lgmp
 OBJS=main.o gc.o read.o write.o types.o stk.o strbuf.o pairs.o symbols.o numbers.o numberio.o map.o env.o procedures.o cpseval.o ports.o
 
 all: scheme
