@@ -52,6 +52,10 @@
  * Scheme Procedures (organized by R5RS sections)
  */
 
+/* 6.2.6 Numerical input and output */
+extern scheme_t scheme_string2number_1(scheme_t);
+extern scheme_t scheme_string2number_2(scheme_t, scheme_t);
+
 /* 6.3.2. Pairs and lists */
 
 #define scheme_pairp(s)       (IS_PAIRPTR(s))
@@ -61,6 +65,8 @@ extern scheme_t scheme_cons(scheme_t, scheme_t);
 #define scheme_set_carx(s, v) (GET_CAR(GET_PTR(s)) = (scheme_t)v)
 #define scheme_set_cdrx(s, v) (GET_CDR(GET_PTR(s)) = (scheme_t)v)
 
+#define scheme_nullp(s)       (s == SCHEME_NIL)
+#define scheme_listp(s)       (scheme_nullp(s) || scheme_pairp(s))
 
 /* 6.6.3 Output */
 extern scheme_t scheme_write_1(scheme_t);

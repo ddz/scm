@@ -8,124 +8,13 @@
 #include "stk.h"
 #include "strbuf.h"
 
-scheme_t read_character(FILE* f)
-{
-    char c;
-    
-    fprintf(stderr, "read_character");
-    
-    while ((c = getc(f)) != EOF) {
-	switch (c) {
-	case ' ':
-	case '\n':
-	    break;
-	    
-	case '(':
-	case ')':
-	case '\"':
-	case ';':
-	    ungetc(c, f);
-	    break;
-	}
-    }
-	
-    return SCHEME_UNSPEC;
-}
-
-scheme_t read_number(FILE* f)
-{
-    char c;
-    static strbuf_t sb = STRBUF_INITIALIZER;
-
-    strbuf_reset(&sb);
-    
-    while ((c = getc(f)) != EOF) {
-	switch (c) {
-	case '(':
-	case ')':
-	case '\"':
-	case ';':
-	    ungetc(c, f);
-
-	case ' ':
-	case '\n':
-	    return MAKE_FIXNUM(atoi(strbuf_buffer(&sb)));
-
-	default:
-	    strbuf_add(&sb, c);
-	}
-    }
-}
-
-scheme_t read_string(FILE* f)
-{
-    char c;
-    static strbuf_t sb = STRBUF_INITIALIZER;
-    
-    while ((c = getc(f)) != EOF) {
-        if (c == '"') {
-            int n;
-            char* str;
-            
-            str = strdup(sb.buf);
-            n = strbuf_length(&sb);
-            strbuf_reset(&sb);
-
-            return MAKE_STRING(str, n);
-        }
-        else if (c ==  '\\') {
-            switch (getc(f)) {
-            case '\"':
-                strbuf_add(&sb, '\"');
-                break;
-            case '\\':
-                strbuf_add(&sb, '\\');
-                break;
-            default:
-                error("Unknown string escape");
-            }
-        }
-        else
-            strbuf_add(&sb, c);
-    }
-
-    return SCHEME_EOF;
-}
-
-int issubsequent(char c)
-{
-    static char subsequent[] = "!$%&*/:<=>?^_~+-.@";
-
-    return (isalnum(c) || strchr(subsequent, c) != NULL);
-}
-
-int isinitial(char c)
-{
-    static char specialinitial[] = "!$%&*/:<=>?^_~";
-
-    return (isalpha(c) || strchr(specialinitial, c) != NULL);
-}
-
-scheme_t read_identifier(FILE* f)
-{
-    char c;
-    scheme_t s;
-    static strbuf_t sb = STRBUF_INITIALIZER;
-
-    while ((c = getc(f)) != EOF) {
-	if (issubsequent(c))
-	    strbuf_add(&sb, c);
-	else {
-	    ungetc(c, f);
-	    break;
-	}
-    }
-
-    s =  MAKE_SYMBOL(strbuf_buffer(&sb), strbuf_length(&sb));
-    strbuf_reset(&sb);
-
-    return s;
-}
+static scheme_t read_identifier(FILE*);
+static scheme_t read_number(FILE*);
+static scheme_t read_character(FILE*);
+static scheme_t read_string(FILE*);
+static int isdelimiter(char);
+static int issubsequent(char);
+static int isinitial(char);
 
 scheme_t scheme_read(FILE* f)
 {
@@ -175,17 +64,16 @@ scheme_t scheme_read(FILE* f)
 	    continue;
 
 	/*
-	 * A '.' may be part of a dotted pair or the unique
+	 * A '.' may be part of a dotted pair or the peculiar
 	 * identifier '...'.
 	 */
 	case '.': {
 	    char d, e;
 	    if ((c = getc(f)) != '.') {
-		if (stk_empty(&stk))
+		if (stk_empty(&stk) ||
+		    (seq = stk_top(&stk))->type != LIST)
 		    error("Unexpected '.'");
-		seq = stk_top(&stk);
-		if (seq->type != LIST)
-		    error("Unexpected '.'");
+
 		s = scheme_read(f);
 		if (s == SCHEME_EOF)
 		    return s;
@@ -254,13 +142,18 @@ scheme_t scheme_read(FILE* f)
 	case '+':
 	case '-': {
 	    char d = getc(f);
-	    if (isdigit(d)) {
-		ungetc(d, f);
-		ungetc(c, f);
-		s = read_number(f);
-		break;
+	    ungetc(d, f);
+
+	    if (isdelimiter(d)) {
+		if (c == '+')
+		    return MAKE_SYMBOL("+", 1);
+		else
+		    return MAKE_SYMBOL("-", 1);
 	    }
-	    ungetc(c, f);
+	    else {
+		ungetc(c, f);
+		return read_number(f);
+	    }
 	}
 
 	/*
@@ -282,7 +175,7 @@ scheme_t scheme_read(FILE* f)
 		seq->seq.vector.size = 0;
 		seq->seq.vector.v = NULL;
 		stk_push(&stk, seq);
-		break;
+		continue;
 		
 	    case 't':
 	    case 'T':
@@ -359,7 +252,7 @@ scheme_t scheme_read(FILE* f)
 				seq->seq.vector.size * sizeof(scheme_t));
 		}
 
-		seq->seq.vector.v[seq->seq.vector.size++] = s;
+		seq->seq.vector.v[seq->seq.vector.used++] = s;
 	    }
 	}
 	else
@@ -368,3 +261,142 @@ scheme_t scheme_read(FILE* f)
 
     return SCHEME_EOF;
 }
+
+scheme_t read_identifier(FILE* f)
+{
+    char c;
+    scheme_t s;
+    static strbuf_t sb = STRBUF_INITIALIZER;
+
+    while ((c = getc(f)) != EOF) {
+	if (issubsequent(c))
+	    strbuf_add(&sb, c);
+	else {
+	    ungetc(c, f);
+	    break;
+	}
+    }
+
+    s =  MAKE_SYMBOL(strbuf_buffer(&sb), strbuf_length(&sb));
+    strbuf_reset(&sb);
+
+    return s;
+}
+
+scheme_t read_number(FILE* f)
+{
+    char c;
+    static strbuf_t sb = STRBUF_INITIALIZER;
+
+    strbuf_reset(&sb);
+
+    while ((c = getc(f)) != EOF) {
+	if (isdelimiter(c)) {
+	    /*
+	     * Use the RnRS string parser, string->number
+	     */
+	    scheme_t s = MAKE_STRING(strbuf_buffer(&sb),
+				     strbuf_length(&sb));
+	    ungetc(c, f);
+	    return scheme_string2number_1(s);
+	}
+	else
+	    strbuf_add(&sb, c);
+    }
+
+    return SCHEME_EOF;
+}
+
+scheme_t read_character(FILE* f)
+{
+    char c;
+    
+    static strbuf_t sb = STRBUF_INITIALIZER;
+
+    strbuf_reset(&sb);
+
+    c = getc(f);
+    if (c == EOF)
+	return SCHEME_EOF;
+    
+    strbuf_add(&sb, c);
+    
+    while ((c = getc(f)) != EOF) {
+	if (isdelimiter(c)) {
+	    char* buf = strbuf_buffer(&sb);
+	    int length = strbuf_length(&sb);
+	    
+	    ungetc(c, f);
+	    
+	    if (length == 1)
+		return MAKE_CHAR(buf[0]);
+	    else if (strcasecmp(buf, "newline") == 0)
+		return MAKE_CHAR('\n');
+	    else if (strcasecmp(buf, "space") == 0)
+		return MAKE_CHAR(' ');
+	    else
+		error("Unknown character name");
+	}
+	else
+	    strbuf_add(&sb, c);
+    }
+    
+    return SCHEME_EOF;
+}
+
+scheme_t read_string(FILE* f)
+{
+    char c;
+    static strbuf_t sb = STRBUF_INITIALIZER;
+    
+    while ((c = getc(f)) != EOF) {
+        if (c == '"') {
+            int n;
+            char* str;
+            
+            str = strdup(sb.buf);
+            n = strbuf_length(&sb);
+            strbuf_reset(&sb);
+
+            return MAKE_STRING(str, n);
+        }
+        else if (c ==  '\\') {
+            switch (getc(f)) {
+            case '\"':
+                strbuf_add(&sb, '\"');
+                break;
+            case '\\':
+                strbuf_add(&sb, '\\');
+                break;
+            default:
+                error("Unknown string escape");
+            }
+        }
+        else
+            strbuf_add(&sb, c);
+    }
+
+    return SCHEME_EOF;
+}
+
+int isdelimiter(char c)
+{
+    static char delims[] = "()\";";
+
+    return (isspace(c) || strchr(delims, c) != NULL);
+}
+
+int issubsequent(char c)
+{
+    static char subsequent[] = "!$%&*/:<=>?^_~+-.@";
+
+    return (isalnum(c) || strchr(subsequent, c) != NULL);
+}
+
+int isinitial(char c)
+{
+    static char specialinitial[] = "!$%&*/:<=>?^_~";
+
+    return (isalpha(c) || strchr(specialinitial, c) != NULL);
+}
+

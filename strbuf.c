@@ -28,22 +28,19 @@ int strbuf_reset(strbuf_t* sb)
 {
     if (sb->magic != STRBUF_VALID) { errno = EINVAL; return -1; }
 
-    free(sb->buf);
-    sb->buf = NULL;
-    sb->size = sb->len = 0;
+    sb->len = 0;
+    if (sb->size > 0)
+	sb->buf[0] = '\0';
 
     return 0;
 }
 
 int strbuf_add(strbuf_t* sb, char c)
 {
-    if (sb->len + 1 > sb->size) {
-        while (sb->len + 1 < sb->size) {
-            if (sb->size == 0)
-                sb->size = 1;
-            else
-                sb->size = sb->size * 2;
-        }
+    if (sb->magic != STRBUF_VALID) { errno = EINVAL; return -1; }
+    
+    while (sb->len + 1 > sb->size) {
+	sb->size = (sb->size * 2) + 1;
         sb->buf = realloc(sb->buf, sb->size);
     }
 
@@ -55,13 +52,10 @@ int strbuf_add(strbuf_t* sb, char c)
 
 int strbuf_append(strbuf_t* sb, char* s, size_t len)
 {
-    if (sb->len + len > sb->size) {
-        while (sb->len + len < sb->size) {
-            if (sb->size == 0)
-                sb->size = 1;
-            else
-                sb->size = sb->size * 2;
-        }
+    if (sb->magic != STRBUF_VALID) { errno = EINVAL; return -1; }
+    
+    while (sb->len + len > sb->size) {
+	sb->size = (sb->size * 2) + 1;
         sb->buf = realloc(sb->buf, sb->size);
     }
 
@@ -73,10 +67,14 @@ int strbuf_append(strbuf_t* sb, char* s, size_t len)
 
 size_t strbuf_length(strbuf_t* sb)
 {
+    if (sb->magic != STRBUF_VALID) { errno = EINVAL; return -1; }
+    
     return sb->len;
 }
 
 char* strbuf_buffer(strbuf_t* sb)
 {
+    if (sb->magic != STRBUF_VALID) { errno = EINVAL; return NULL; }
+    
     return sb->buf;
 }
