@@ -134,12 +134,11 @@ scheme_t parse_uinteger(char* str, int radix, char** endptr)
     fixnum = strtol(str, endptr, radix);
     if (fixnum == LONG_MIN || fixnum == LONG_MAX)
 	// XXX: Make bignum
-	return SCHEME_FALSE;
+	return MAKE_BIGNUM(str, radix);
     else {
 	scheme_t n = MAKE_FIXNUM(fixnum);
 	if (GET_FIXNUM(n) != fixnum)
-	    // XXX: Make bignum
-	    return SCHEME_FALSE;
+	    return MAKE_BIGNUM(str, radix);
 	return n;
     }
 }

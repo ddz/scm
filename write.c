@@ -4,6 +4,7 @@
  */
 
 #include <stdio.h>
+#include <gmp.h>
 #include "scheme.h"
 
 char* synt_names[] = {
@@ -132,6 +133,12 @@ scheme_t scheme_write_1(scheme_t obj)
 		write_vector(obj);
 		printf(")");
 		break;
+
+	    case BIGNUM_T: {
+		mpz_t* bignum = (mpz_t*)GET_CDR(GET_PTR(obj));
+		mpz_out_str(stdout, 10, *bignum);
+		break;
+	    }
 		
             default:
                 printf("#<heap pointer>");

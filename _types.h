@@ -158,13 +158,15 @@ typedef scheme_t cell_t[2];
  * implemented.
  */
 
-#define GET_CELLTAG(s) ((GET_CAR(GET_PTR(s)) >> 3) & 3)
-#define GET_CELLLEN(s) ((GET_CAR(GET_PTR(s)) >> 5))
+#define GET_CELLTAG(s) ((GET_CAR(GET_PTR(s)) >> 3) & 7)
+#define GET_CELLLEN(s) ((GET_CAR(GET_PTR(s)) >> 6))
 
 #define SYMBOL_T 0
 #define STRING_T 1
 #define VECTOR_T 2
 #define PORT_T   3
+#define BIGNUM_T 4
+#define RATNUM_T 5
 
 #define GET_CAR(c)         (((scheme_t*)c)[0])
 #define GET_CDR(c)         (((scheme_t*)c)[1])
@@ -180,10 +182,14 @@ typedef scheme_t cell_t[2];
 #define MAKE_STRING(str, size) (make_string(str, size))
 #define MAKE_VECTOR(vec, elms) (make_vector(vec, elms))
 #define MAKE_PORT(f)           (make_port(f))
+#define MAKE_BIGNUM(n, r)      (make_bignum(n, r))
+#define MAKE_RATNUM(n, d, r)   (make_ratnum(n, d, r))
 
 extern scheme_t make_symbol(char*, size_t);
 extern scheme_t make_string(char*, size_t);
 extern scheme_t make_vector(scheme_t*, size_t);
 extern scheme_t make_port(FILE* f);
+extern scheme_t make_bignum(char*, int);
+extern scheme_t make_ratnum(char*, char*, int);
 
 #endif

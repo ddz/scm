@@ -3,8 +3,8 @@
 #
 
 CFLAGS=-I. -g
-LDLIBS=
-OBJS=main.o read.o write.o types.o stk.o strbuf.o pairs.o symbols.o numberio.o symtable.o
+LDLIBS=-lgmp
+OBJS=main.o read.o write.o types.o stk.o strbuf.o pairs.o symbols.o numbers.o numberio.o symtable.o
 
 all: scheme
 
