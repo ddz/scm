@@ -193,7 +193,7 @@ scheme_t read_token(FILE* f)
 scheme_t scheme_read(FILE* f)
 {
     stk_t stk = STK_INITIALIZER;
-    sequence_state_t* seq;
+    sequence_state_t* seq = NULL;
     scheme_t s = SCHEME_UNDEF;
 
     while ((s = read_token(f)) != SCHEME_EOF) {
@@ -209,8 +209,11 @@ scheme_t scheme_read(FILE* f)
 	    continue;
 	    
 	case RP:
+	    if (stk_empty(&stk))
+		error("Mismatched parenthesis");
+	    seq = stk_pop(&stk);
 	    s = sequence2scheme(seq);
-	    // free(seq);
+	    free(seq);
 	    seq = NULL;
 	    break;
 	    
