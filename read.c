@@ -42,9 +42,14 @@ int main(int argc, char* argv[])
          * Set a jmp point so errors return to the top-level
          */
         if (!setjmp(top_level)) {
-            scheme_t s = read_datum();
-            
-            if (s != SCHEME_UNSPEC) {
+            scheme_t s;
+	    if ((s = read_datum()) != SCHEME_UNSPEC) {
+		token_t token;
+		lexer_peek_token(&token);
+		if (token.token == RP) {
+		    printf("ERROR: Unbalanced parenthesis\n");
+		    longjmp(top_level, 1);
+		}
                 scheme_write_1(s);
                 printf("\n");
             }
@@ -109,7 +114,10 @@ scheme_t read_list()
     while (1) {
 	token_t token;
 	
-        s = read_datum();
+        if ((s = read_datum()) == SCHEME_UNSPEC) {
+	    printf("ERROR: Unbalanced parentheses\n");
+	    longjmp(top_level, 1);
+	}
 
         /*
          * read_datum() returns SCHEME_NIL to signify end-of-list.
@@ -209,7 +217,7 @@ scheme_t read_simple(token_t* token)
     printf("ERROR: Unknown simple datum token\n");
     longjmp(top_level, 1);
     
-    return SCHEME_UNSPEC;
+    return SCHEME_UNSPEC;    /* Never reached */
 }
 
 
@@ -282,7 +290,7 @@ scheme_t read_number(token_t* token)
             break;
         default:
             printf("read_number: unknown base or exactness\n");
-            return SCHEME_UNSPEC;
+	    longjmp(top_level, 1);
         }
         
         str += 2;
@@ -292,22 +300,22 @@ scheme_t read_number(token_t* token)
     if (errno == ERANGE) {
         if (i == LONG_MIN) {
             printf("read_number: strtol underflow\n");
-            return SCHEME_UNSPEC;
+	    longjmp(top_level, 1);
         }
         else if (i == LONG_MAX) {
             printf("read_number: strtol overflow\n");
-            return SCHEME_UNSPEC;
+	    longjmp(top_level, 1);
         }
     }
     else if (*endptr) {
         printf("read_number: illegal character (%c)\n", *endptr);
-        return SCHEME_UNSPEC;
+	longjmp(top_level, 1);
     }
         
     num = MAKE_FIXNUM(i);
     if (GET_FIXNUM(num) != i) {
         printf("read_number: fixnum overflow\n");
-        return SCHEME_UNSPEC;
+	longjmp(top_level, 1);
     }
 
     return num;

@@ -7,9 +7,17 @@
 #ifndef SCM_HASH_H
 #define SCM_HASH_H
 
-typedef struct {
-    
+#include <sys/types.h>
 
+#define SCM_HASH_VALID 0xcafebabe
+
+typedef struct {
+    int       magic;
+    size_t    used;
+    size_t    size;
+    float     rehash_size;
+    float     rehash_threshold;
+    scheme_t* table;
 } scm_hash_t;
 
 #endif
