@@ -51,5 +51,6 @@ typedef struct {
 extern int    map_init(map_t*, map_hash_t, map_cmp_t);
 extern int    map_put(map_t*, void*, void*);
 extern void*  map_get(map_t*, const void*, int*);
+extern map_entry_t** map_lookup(map_t* h, const void* key);
 
 #endif

@@ -11,6 +11,7 @@
 
 #include <stdlib.h>
 #include "scheme.h"
+#include "map.h"
 
 /*
  * A dirty hack for now while writing the CPS interpreter
@@ -29,6 +30,13 @@ scheme_t        proc = SCHEME_NIL;
 scheme_t        args = SCHEME_NIL;
 
 static char errbuf[2048];
+
+#define ENV_CACHE_SIZE 10;
+struct env_cache_entry {
+    env_frame_t*  env;
+    map_entry_t** me;
+};
+static struct env_cache_entry env_cache[5];
 
 continuation_t* make_continuation(enum cont_type t,
 				  env_frame_t* e,
@@ -72,6 +80,43 @@ scheme_t make_let(scheme_t vars, scheme_t vals, scheme_t body)
 				   scheme_cons(vars, body)), vals);
 }
 
+int apply_env(env_frame_t* env, scheme_t var, scheme_t* valptr)
+{
+    env_frame_t* e = env;
+    size_t n;
+    map_entry_t** me = NULL;
+
+    n = (unsigned int)var % ENV_CACHE_SIZE;
+
+    /*
+     * Check the cache first
+     */
+    if (env_cache[n].env == e &&
+        (scheme_t)(*env_cache[n].me)->key == var) {
+        if (valptr)
+            *valptr = (scheme_t)(*env_cache[n].me)->data;
+        return 1;
+    }
+    else {
+        while (e != NULL) {
+            me = map_lookup(e->bindings, (void*)var);
+            if (me == NULL || *me == NULL) {
+                e = e->env;
+                continue;
+            }
+
+            env_cache[n].env = env;
+            env_cache[n].me = me;
+
+            if (valptr)
+                *valptr = (scheme_t)(*me)->data;
+            return 1;
+        }
+
+        return 0;
+    }
+}
+
 scheme_t scheme_apply(scheme_t proc, scheme_t args)
 {
     struct procedure* p = GET_PROCEDURE(proc);
@@ -90,7 +135,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     
  EVAL_EXPRESSION:
     if (IS_SYMBOL(expr)) {
-        if (env_lookup(env, expr, &val))
+        if (apply_env(env, expr, &val))
             goto APPLY_CONT;
         snprintf(errbuf, 2000,
                  "reference to undefined identifier: %s",
@@ -103,7 +148,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
         rands = scheme_cdr(expr);
 
         if (IS_SYMBOL(rator) &&
-	    env_lookup(env, rator, &rator) &&
+	    apply_env(env, rator, &rator) &&
 	    IS_IMMVAL(rator) && IS_SYNT(rator)) {
 	    
             switch (rator) {
@@ -193,26 +238,6 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 		goto EVAL_EXPRESSION;
 	    }
 
-	    /*
-	    case SCHEME_APPLY: {
-		scheme_t p = scheme_car(rands);
-		scheme_t a = scheme_car(scheme_cdr(rands));
-
-		printf("apply p: ");
-		scheme_write_1(p);
-		printf("\n");
-		printf("apply a: ");
-		scheme_write_1(a);
-		printf("\n");
-		
-		expr = p;
-		cont = make_continuation(EVAL_RATOR, env, cont);
-		cont->data.eval_rator.rands = a;
-		
-		goto EVAL_EXPRESSION;
-	    }
-	    */
-	    
             default:
                 error("Syntactic form not yet implemented");
             }
@@ -265,8 +290,8 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
     case VARASSIGN: {
 	continuation_t* old_cont = cont;
 	
-        if (env_lookup(cont->envt,
-                       cont->data.assignment.var, NULL)) {
+        if (apply_env(cont->envt,
+                      cont->data.assignment.var, NULL)) {
             env_bind(cont->envt,
                      cont->data.assignment.var, val);
             val = SCHEME_UNSPEC;
@@ -404,8 +429,7 @@ scheme_t scheme_eval(scheme_t sexpr, env_frame_t* e)
 	    }
 	    if (IS_SYMBOL(vars))
 		env_bind(env, vars, vals);
-
-	    if (vars != SCHEME_NIL)
+            else if (vars != SCHEME_NIL)
 		error("Not enough args to proc application");
 	    
 	    // Evaluate body as implicit begin

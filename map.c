@@ -10,7 +10,7 @@
 #define MAP_INIT_SIZE 1
 
 static int map_resize(map_t* h, size_t size);
-static map_entry_t** map_lookup(map_t* h, const void* key);
+
 
 int map_init(map_t* h, map_hash_t hash_op, map_cmp_t cmp_op)
 {
