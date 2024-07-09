@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
 {
     char c;
     scheme_t s, e;
-    size_t heap_size = 1024 * 1024;
+    size_t heap_size = 4 * 1024 * 1024;
     FILE* boot;
     
     while ((c = getopt(argc, argv, "h:")) != EOF) {
