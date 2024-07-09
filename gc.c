@@ -311,9 +311,4 @@ void gc_flip()
 
         scan += sizeof(cell_t);
     }
-
-    // Just for debugging, deadbeef-out fromspace
-    for (i = 0; i < heap_size / 2; i++)
-        fromspace[i] = 0xAA;
-    
 }
